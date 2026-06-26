@@ -24,8 +24,3 @@ export function toDateInput(d: Date | string | null | undefined): string {
   const date = typeof d === "string" ? new Date(d) : d;
   return date.toISOString().slice(0, 10);
 }
-
-// Période courante au format "AAAA-MM".
-export function currentPeriode(now: Date = new Date()): string {
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-}
