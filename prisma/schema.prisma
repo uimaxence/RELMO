@@ -53,6 +53,7 @@ model Contrat {
   dateDebut      DateTime  @default(now())
   dateFin        DateTime?
   statut         String    @default("actif") // actif | en_pause | resilie
+  note           String?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 

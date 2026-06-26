@@ -20,26 +20,38 @@ function currentPeriod() {
 
 export default async function DashboardPage() {
   const periode = currentPeriod();
+  const now = new Date();
 
-  const [clients, sites, contrats, livrablesAFaire, mrrAgg] = await Promise.all([
-    prisma.client.count(),
-    prisma.site.count(),
-    prisma.contrat.count({ where: { statut: "actif" } }),
-    prisma.livrable.count({ where: { periode, statut: "a_faire" } }),
-    prisma.contrat.aggregate({
-      _sum: { montantMensuel: true },
-      where: { statut: "actif" },
-    }),
-  ]);
+  const [clients, sites, contrats, livrablesAFaire, mrrAgg, aVenirAgg] =
+    await Promise.all([
+      prisma.client.count(),
+      prisma.site.count(),
+      prisma.contrat.count({ where: { statut: "actif" } }),
+      prisma.livrable.count({ where: { periode, statut: "a_faire" } }),
+      // MRR facturé : contrats actifs déjà démarrés.
+      prisma.contrat.aggregate({
+        _sum: { montantMensuel: true },
+        where: { statut: "actif", dateDebut: { lte: now } },
+      }),
+      // Contrats actifs pas encore démarrés (ex. mois offert).
+      prisma.contrat.aggregate({
+        _sum: { montantMensuel: true },
+        where: { statut: "actif", dateDebut: { gt: now } },
+      }),
+    ]);
 
   const mrr = mrrAgg._sum.montantMensuel ?? 0;
+  const aVenir = aVenirAgg._sum.montantMensuel ?? 0;
 
   const kpis = [
     {
-      label: "MRR (contrats actifs)",
+      label: "MRR facturé",
       value: `${mrr.toLocaleString("fr-FR")} €`,
       icon: Euro,
-      hint: "Somme des montants mensuels",
+      hint:
+        aVenir > 0
+          ? `+ ${aVenir.toLocaleString("fr-FR")} € à venir (mois offert)`
+          : "Contrats actifs déjà démarrés",
     },
     {
       label: "Clients",
