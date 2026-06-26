@@ -1,0 +1,99 @@
+// Schéma SiteFlow — cf. docs/PROJET.md §7 (Modèle de données).
+// SQLite en V1 (mono-utilisateur, local). Migration Postgres possible plus tard.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+// Un client (la personne/entreprise pour qui on gère des sites).
+model Client {
+  id        String   @id @default(cuid())
+  nom       String
+  email     String?
+  telephone String?
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sites Site[]
+}
+
+// Un site géré pour un client (1 client -> 0..n sites).
+model Site {
+  id              String    @id @default(cuid())
+  clientId        String
+  nom             String
+  url             String?
+  repoGitUrl      String?
+  hebergeur       String?
+  stack           String? // ex. "Next.js"
+  statut          String    @default("actif") // actif | en_pause | archive
+  dateMiseEnLigne DateTime?
+  notes           String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  client    Client     @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  contrats  Contrat[]
+
+  @@index([clientId])
+}
+
+// Le « vendu » récurrent attaché à un site.
+model Contrat {
+  id             String    @id @default(cuid())
+  siteId         String
+  libelle        String
+  montantMensuel Float     @default(0) // en euros
+  dateDebut      DateTime  @default(now())
+  dateFin        DateTime?
+  statut         String    @default("actif") // actif | en_pause | resilie
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  site        Site         @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  engagements Engagement[]
+
+  @@index([siteId])
+}
+
+// Une ligne d'engagement récurrent d'un contrat (ce qui est vendu, par mois).
+model Engagement {
+  id             String  @id @default(cuid())
+  contratId      String
+  type           String // ex. "article_seo", "maj_securite"
+  libelle        String
+  quantiteParMois Int    @default(1)
+  recurrence     String  @default("mensuelle") // mensuelle | ...
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  contrat   Contrat    @relation(fields: [contratId], references: [id], onDelete: Cascade)
+  livrables Livrable[]
+
+  @@index([contratId])
+}
+
+// Le « livré » : instancié par mois à partir des engagements actifs.
+model Livrable {
+  id           String    @id @default(cuid())
+  engagementId String
+  periode      String // "AAAA-MM"
+  libelle      String
+  statut       String    @default("a_faire") // a_faire | fait | non_applicable
+  faitLe       DateTime?
+  source       String    @default("manuel") // manuel | git
+  note         String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  engagement Engagement @relation(fields: [engagementId], references: [id], onDelete: Cascade)
+
+  @@index([engagementId])
+  @@index([periode])
+}
