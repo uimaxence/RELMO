@@ -97,6 +97,22 @@ async function main() {
               dateDebut: new Date("2026-07-01"),
               statut: "actif",
               note: "1 mois offert (juin 2026). Facturation à partir de juillet 2026.",
+              engagements: {
+                create: [
+                  {
+                    type: "publication_podcast",
+                    libelle: "Mise en ligne des podcasts (à chaque sortie)",
+                    quantiteParMois: 1,
+                    recurrence: "a_la_demande",
+                  },
+                  { type: "suivi_seo", libelle: "Suivi SEO", quantiteParMois: 1 },
+                  {
+                    type: "maj_contenu",
+                    libelle: "Mise à jour de contenu / photos",
+                    quantiteParMois: 1,
+                  },
+                ],
+              },
             },
           },
         },
