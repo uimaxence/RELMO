@@ -2,12 +2,6 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  LayoutDashboard,
-  Users,
-  ListChecks,
-  Euro,
-} from "lucide-react";
 
 import {
   Sidebar,
@@ -20,16 +14,11 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-
-const nav = [
-  { title: "Tableau de bord", href: "/", icon: LayoutDashboard },
-  { title: "Clients & sites", href: "/clients", icon: Users },
-  { title: "Livrables du mois", href: "/livrables", icon: ListChecks },
-  { title: "MRR", href: "/mrr", icon: Euro },
-];
+import { NAV, activeNavItem } from "@/components/nav-config";
 
 export function AppSidebar() {
   const pathname = usePathname();
+  const active = activeNavItem(pathname);
 
   return (
     <Sidebar>
@@ -46,22 +35,16 @@ export function AppSidebar() {
           <SidebarGroupLabel>Navigation</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {nav.map((item) => {
-                const active =
-                  item.href === "/"
-                    ? pathname === "/"
-                    : pathname.startsWith(item.href);
-                return (
-                  <SidebarMenuItem key={item.href}>
-                    <SidebarMenuButton asChild isActive={active}>
-                      <Link href={item.href}>
-                        <item.icon />
-                        <span>{item.title}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                );
-              })}
+              {NAV.map((item) => (
+                <SidebarMenuItem key={item.href}>
+                  <SidebarMenuButton asChild isActive={active?.href === item.href}>
+                    <Link href={item.href}>
+                      <item.icon />
+                      <span>{item.title}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

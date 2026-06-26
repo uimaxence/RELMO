@@ -110,7 +110,9 @@ export default async function MrrPage() {
               <k.icon className="size-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{k.value}</div>
+              <div className="text-2xl font-semibold tabular-nums tracking-tight">
+                {k.value}
+              </div>
               <CardDescription className="mt-1">{k.hint}</CardDescription>
             </CardContent>
           </Card>

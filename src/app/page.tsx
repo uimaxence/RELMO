@@ -128,7 +128,9 @@ export default async function DashboardPage() {
               <kpi.icon className="size-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{kpi.value}</div>
+              <div className="text-2xl font-semibold tabular-nums tracking-tight">
+                {kpi.value}
+              </div>
               <CardDescription className="mt-1">{kpi.hint}</CardDescription>
             </CardContent>
           </Card>
