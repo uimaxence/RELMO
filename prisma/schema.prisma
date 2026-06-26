@@ -32,6 +32,7 @@ model Site {
   repoGitUrl      String?
   hebergeur       String?
   stack           String? // ex. "Next.js"
+  contact         String? // interlocuteur (ex. qui fournit le contenu)
   statut          String    @default("actif") // actif | en_pause | archive
   dateMiseEnLigne DateTime?
   notes           String?

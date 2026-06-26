@@ -20,6 +20,7 @@ export const siteSchema = z.object({
   repoGitUrl: optionalString,
   hebergeur: optionalString,
   stack: optionalString,
+  contact: optionalString,
   statut: z.enum(["actif", "en_pause", "archive"]),
   dateMiseEnLigne: optionalDate,
   notes: optionalString,

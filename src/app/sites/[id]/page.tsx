@@ -112,6 +112,12 @@ export default async function SiteDetailPage({
               {m.label.toLowerCase()}
             </span>
           ))}
+          {site.contact ? (
+            <span>
+              Contact :{" "}
+              <span className="font-medium text-foreground">{site.contact}</span>
+            </span>
+          ) : null}
         </div>
         {site.notes ? (
           <p className="mt-3 whitespace-pre-wrap text-sm">{site.notes}</p>

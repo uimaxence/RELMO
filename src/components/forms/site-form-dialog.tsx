@@ -37,6 +37,7 @@ type SiteLite = {
   repoGitUrl: string | null;
   hebergeur: string | null;
   stack: string | null;
+  contact: string | null;
   statut: string;
   dateMiseEnLigne: Date | string | null;
   notes: string | null;
@@ -130,6 +131,19 @@ export function SiteFormDialog({
               />
             </Field>
           </div>
+          <Field
+            label="Contact"
+            htmlFor="contact"
+            hint="Interlocuteur côté client (ex. qui fournit le contenu)."
+            error={state?.fieldErrors?.contact}
+          >
+            <Input
+              id="contact"
+              name="contact"
+              defaultValue={site?.contact ?? ""}
+              placeholder="Ex. Elisa Chéné"
+            />
+          </Field>
           <div className="grid grid-cols-2 gap-4">
             <Field label="Statut" error={state?.fieldErrors?.statut}>
               <Select name="statut" defaultValue={site?.statut ?? "actif"}>
