@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SiteStatusBadge, ClientStatusBadge } from "@/components/status-badge";
 import { euros, dateFr } from "@/lib/format";
-import { labelOf, CANAUX } from "@/lib/constants";
+import { labelOf, CANAUX, SOURCES } from "@/lib/constants";
 
 export const dynamic = "force-dynamic";
 
@@ -76,6 +76,23 @@ export default async function ClientDetailPage({
           {client.telephone ? (
             <span className="inline-flex items-center gap-1.5">
               <Phone className="size-4" /> {client.telephone}
+            </span>
+          ) : null}
+          {client.source ? (
+            <span>
+              Source :{" "}
+              <span className="font-medium text-foreground">
+                {labelOf(SOURCES, client.source)}
+              </span>
+              {client.sourceDetail ? ` · ${client.sourceDetail}` : ""}
+            </span>
+          ) : null}
+          {client.secteur ? (
+            <span>
+              Secteur :{" "}
+              <span className="font-medium text-foreground">
+                {client.secteur}
+              </span>
             </span>
           ) : null}
         </div>

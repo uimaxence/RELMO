@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { euros, dateFr } from "@/lib/format";
+import { labelOf, SOURCES } from "@/lib/constants";
 
 export const dynamic = "force-dynamic";
 
@@ -71,6 +72,27 @@ export default async function MrrPage() {
       ),
     )
     .sort((a, b) => a.dateDebut.getTime() - b.dateDebut.getTime());
+
+  // Répartition par source d'acquisition (quel canal ramène du MRR).
+  const parSource = new Map<string, { mrr: number; nbClients: number }>();
+  for (const c of clients) {
+    const key = c.source ?? "non_precise";
+    const facture = c.sites
+      .flatMap((s) => s.contrats)
+      .filter((ct) => ct.statut === "actif" && ct.dateDebut <= now)
+      .reduce((s, ct) => s + ct.montantMensuel, 0);
+    const g = parSource.get(key) ?? { mrr: 0, nbClients: 0 };
+    g.mrr += facture;
+    g.nbClients += 1;
+    parSource.set(key, g);
+  }
+  const sourceRows = [...parSource.entries()]
+    .map(([key, v]) => ({
+      key,
+      label: key === "non_precise" ? "Non précisé" : labelOf(SOURCES, key),
+      ...v,
+    }))
+    .sort((a, b) => b.mrr - a.mrr || b.nbClients - a.nbClients);
 
   const kpis = [
     {
@@ -149,6 +171,41 @@ export default async function MrrPage() {
                   </TableCell>
                   <TableCell className="pr-6 text-right font-mono font-medium tabular-nums">
                     {euros(r.facture)}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">
+            Par source d&apos;acquisition
+          </CardTitle>
+          <CardDescription>
+            Quel canal ramène des clients et du MRR — pour réinvestir où ça marche.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="px-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="pl-6">Source</TableHead>
+                <TableHead className="text-center">Clients</TableHead>
+                <TableHead className="pr-6 text-right">MRR facturé</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {sourceRows.map((r) => (
+                <TableRow key={r.key}>
+                  <TableCell className="pl-6 font-medium">{r.label}</TableCell>
+                  <TableCell className="text-center font-mono tabular-nums">
+                    {r.nbClients}
+                  </TableCell>
+                  <TableCell className="pr-6 text-right font-mono font-medium tabular-nums">
+                    {euros(r.mrr)}
                   </TableCell>
                 </TableRow>
               ))}

@@ -42,6 +42,19 @@ export const DEVIS_STATUTS: Option[] = [
   { value: "expire", label: "Expiré" },
 ];
 
+// Canal d'acquisition d'un client (marketing / F14).
+export const SOURCES: Option[] = [
+  { value: "bouche_a_oreille", label: "Bouche-à-oreille" },
+  { value: "reseau", label: "Réseau perso" },
+  { value: "linkedin", label: "LinkedIn" },
+  { value: "instagram", label: "Instagram" },
+  { value: "inbound", label: "Site / inbound" },
+  { value: "prospection", label: "Prospection sortante" },
+  { value: "event", label: "Événement / salon" },
+  { value: "ancien_client", label: "Ré-engagement" },
+  { value: "autre", label: "Autre" },
+];
+
 export const CANAUX: Option[] = [
   { value: "whatsapp", label: "WhatsApp" },
   { value: "email", label: "E-mail" },

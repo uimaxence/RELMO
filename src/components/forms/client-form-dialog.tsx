@@ -26,7 +26,7 @@ import {
 import { Field } from "@/components/forms/form-ui";
 import { createClient, updateClient } from "@/app/actions/clients";
 import { initialFormState, type FormState } from "@/lib/form";
-import { CLIENT_STATUTS } from "@/lib/constants";
+import { CLIENT_STATUTS, SOURCES } from "@/lib/constants";
 
 type ClientLite = {
   id: string;
@@ -34,6 +34,9 @@ type ClientLite = {
   email: string | null;
   telephone: string | null;
   statut: string;
+  source: string | null;
+  sourceDetail: string | null;
+  secteur: string | null;
   notes: string | null;
 };
 
@@ -68,7 +71,7 @@ export function ClientFormDialog({
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {editing ? "Modifier le client" : "Nouveau client"}
@@ -123,6 +126,52 @@ export function ClientFormDialog({
               </Select>
             </Field>
           </div>
+          <div className="grid grid-cols-2 gap-4">
+            <Field
+              label="Source d'acquisition"
+              hint="Comment tu as obtenu ce client"
+              error={state?.fieldErrors?.source}
+            >
+              <Select name="source" defaultValue={client?.source ?? "none"}>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Non précisé</SelectItem>
+                  {SOURCES.map((s) => (
+                    <SelectItem key={s.value} value={s.value}>
+                      {s.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+            <Field
+              label="Détail source"
+              htmlFor="sourceDetail"
+              hint="Qui a recommandé / quelle campagne"
+              error={state?.fieldErrors?.sourceDetail}
+            >
+              <Input
+                id="sourceDetail"
+                name="sourceDetail"
+                defaultValue={client?.sourceDetail ?? ""}
+                placeholder="Ex. recommandé par Victoria"
+              />
+            </Field>
+          </div>
+          <Field
+            label="Secteur d'activité"
+            htmlFor="secteur"
+            error={state?.fieldErrors?.secteur}
+          >
+            <Input
+              id="secteur"
+              name="secteur"
+              defaultValue={client?.secteur ?? ""}
+              placeholder="Ex. restaurant, artisan, asso…"
+            />
+          </Field>
           <Field label="Notes" htmlFor="notes" error={state?.fieldErrors?.notes}>
             <Textarea id="notes" name="notes" defaultValue={client?.notes ?? ""} />
           </Field>

@@ -43,6 +43,7 @@ type DevisLite = {
   dateEnvoi: Date | string | null;
   dateRelance: Date | string | null;
   note: string | null;
+  motifPerte: string | null;
 };
 
 export function DevisFormDialog({
@@ -215,6 +216,19 @@ export function DevisFormDialog({
 
           <Field label="Note" htmlFor="note" error={state?.fieldErrors?.note}>
             <Textarea id="note" name="note" defaultValue={devis?.note ?? ""} />
+          </Field>
+
+          <Field
+            label="Motif de perte"
+            htmlFor="motifPerte"
+            hint="Si refusé / expiré : pourquoi (prix, timing, concurrent, sans réponse…)"
+            error={state?.fieldErrors?.motifPerte}
+          >
+            <Input
+              id="motifPerte"
+              name="motifPerte"
+              defaultValue={devis?.motifPerte ?? ""}
+            />
           </Field>
 
           <DialogFooter>

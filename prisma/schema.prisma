@@ -17,6 +17,9 @@ model Client {
   email     String?
   telephone String?
   statut    String   @default("actif") // prospect | actif | ancien
+  source       String? // canal d'acquisition (cf. SOURCES) — F14/marketing
+  sourceDetail String? // qui a recommandé / quelle campagne
+  secteur      String? // secteur d'activité (niche)
   notes     String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -122,6 +125,7 @@ model Devis {
   dateRelance           DateTime?
   dateDecision          DateTime?
   note                  String?
+  motifPerte            String? // si refusé/expiré : pourquoi (prix, timing…)
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
 

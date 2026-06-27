@@ -11,6 +11,12 @@ export const clientSchema = z.object({
   ),
   telephone: optionalString,
   statut: z.enum(["prospect", "actif", "ancien"]),
+  source: z.preprocess(
+    (v) => (v === "" || v === "none" || v === null ? undefined : v),
+    z.string().optional(),
+  ),
+  sourceDetail: optionalString,
+  secteur: optionalString,
   notes: optionalString,
 });
 
@@ -73,6 +79,7 @@ export const devisSchema = z.object({
   dateEnvoi: optionalDate,
   dateRelance: optionalDate,
   note: optionalString,
+  motifPerte: optionalString,
 });
 
 export const interactionSchema = z.object({
