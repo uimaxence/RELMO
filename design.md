@@ -31,6 +31,7 @@ DESIGN_SYSTEM.md est exposée de **deux** façons interchangeables :
 | Statut métier | [`StatusBadge`](src/components/status-badge.tsx) (`ok`/`warn`/`bad`/`neutral`) + `SiteStatusBadge`, `ContratStatusBadge` |
 | En-tête de page | [`PageHeader`](src/components/page-header.tsx) |
 | Avancement vers cible | barre segmentée, cf. [objectif-mrr.tsx](src/components/objectif-mrr.tsx) (petits segments, jamais de bloc plein) |
+| Blocs dashboard (signature) | [src/components/dashboard/](src/components/dashboard/) : `KpiCard` (cadre creux + métrique mono), `VenduVsLivre` (mosaïque de carrés), `AiBanner` (F14). Repris de style-guide.html. |
 | Formulaire create/edit | dialog shadcn + `useActionState` + Zod, cf. [src/components/forms/](src/components/forms/) ; toast + fermeture **dans l'action** (pas en `useEffect`) |
 | Suppression | [`ConfirmDelete`](src/components/forms/confirm-delete.tsx) (`AlertDialog`) |
 | Graphe | `recharts` + [ui/chart.tsx](src/components/ui/chart.tsx) ; couleurs `--chart-1..5` (1 = marque) |

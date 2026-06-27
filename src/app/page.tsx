@@ -1,13 +1,5 @@
 import Link from "next/link";
-import {
-  Users,
-  Globe,
-  ListChecks,
-  Euro,
-  AlertTriangle,
-  Clock,
-  ArrowRight,
-} from "lucide-react";
+import { Users, Globe, ListChecks, Euro, AlertTriangle, Clock } from "lucide-react";
 
 import { prisma } from "@/lib/db";
 import { PageHeader } from "@/components/page-header";
@@ -18,9 +10,11 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ObjectifMrr } from "@/components/objectif-mrr";
+import { KpiCard } from "@/components/dashboard/kpi-card";
+import { VenduVsLivre } from "@/components/dashboard/vendu-vs-livre";
+import { AiBanner } from "@/components/dashboard/ai-banner";
 import { euros, dateFr } from "@/lib/format";
 import { currentPeriode, periodeLabel } from "@/lib/periode";
 import { ensureObjectif } from "@/lib/objectif";
@@ -101,6 +95,18 @@ export default async function DashboardPage() {
 
   const enRetard = sitesLivrables.filter((s) => s.faits < s.total);
 
+  // Vendu vs livré : par engagement (vendu = livrables prévus, livré = faits).
+  const parEng = new Map<string, { label: string; vendu: number; livre: number }>();
+  for (const l of livrables) {
+    const g =
+      parEng.get(l.engagement.id) ??
+      { label: l.engagement.libelle, vendu: 0, livre: 0 };
+    g.vendu++;
+    if (l.statut === "fait") g.livre++;
+    parEng.set(l.engagement.id, g);
+  }
+  const venduItems = [...parEng.values()];
+
   const kpis = [
     {
       label: "MRR facturé",
@@ -137,81 +143,20 @@ export default async function DashboardPage() {
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {kpis.map((kpi) => (
-          <Card key={kpi.label}>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                {kpi.label}
-              </CardTitle>
-              <kpi.icon className="size-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="font-mono text-2xl font-medium tabular-nums tracking-tight">
-                {kpi.value}
-              </div>
-              <CardDescription className="mt-1">{kpi.hint}</CardDescription>
-            </CardContent>
-          </Card>
+          <KpiCard
+            key={kpi.label}
+            label={kpi.label}
+            value={kpi.value}
+            hint={kpi.hint}
+            icon={kpi.icon}
+          />
         ))}
       </div>
 
       <ObjectifMrr objectif={objectif} current={mrr} potentiel={potentiel} />
 
       <div className="grid gap-6 lg:grid-cols-2">
-        {/* Livrables du mois par site */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0">
-            <div>
-              <CardTitle className="text-base">
-                Livrables — <span className="capitalize">{periodeLabel(periode)}</span>
-              </CardTitle>
-              <CardDescription>Avancement par site.</CardDescription>
-            </div>
-            <Button asChild variant="ghost" size="sm">
-              <Link href="/livrables">
-                Tout voir <ArrowRight />
-              </Link>
-            </Button>
-          </CardHeader>
-          <CardContent>
-            {sitesLivrables.length === 0 ? (
-              <div className="py-6 text-center">
-                <p className="text-sm text-muted-foreground">
-                  Aucun livrable généré pour ce mois.
-                </p>
-                <Button asChild variant="outline" size="sm" className="mt-3">
-                  <Link href="/livrables">Générer les livrables</Link>
-                </Button>
-              </div>
-            ) : (
-              <ul className="space-y-3">
-                {sitesLivrables.map((s) => {
-                  const pct = Math.round((s.faits / s.total) * 100);
-                  return (
-                    <li key={s.siteId} className="space-y-1.5">
-                      <div className="flex items-center justify-between text-sm">
-                        <Link
-                          href={`/sites/${s.siteId}`}
-                          className="font-medium hover:underline"
-                        >
-                          {s.nom}
-                        </Link>
-                        <span className="text-muted-foreground">
-                          {s.faits}/{s.total}
-                        </span>
-                      </div>
-                      <div className="h-2 overflow-hidden rounded-full bg-muted">
-                        <div
-                          className="h-full rounded-full bg-emerald-500 transition-all"
-                          style={{ width: `${pct}%` }}
-                        />
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </CardContent>
-        </Card>
+        <VenduVsLivre items={venduItems} periode={periodeLabel(periode)} />
 
         {/* À surveiller */}
         <Card>
@@ -276,6 +221,8 @@ export default async function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      <AiBanner />
     </div>
   );
 }
