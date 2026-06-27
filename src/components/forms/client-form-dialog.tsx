@@ -16,15 +16,24 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Field } from "@/components/forms/form-ui";
 import { createClient, updateClient } from "@/app/actions/clients";
 import { initialFormState, type FormState } from "@/lib/form";
+import { CLIENT_STATUTS } from "@/lib/constants";
 
 type ClientLite = {
   id: string;
   nom: string;
   email: string | null;
   telephone: string | null;
+  statut: string;
   notes: string | null;
 };
 
@@ -87,17 +96,33 @@ export function ClientFormDialog({
               placeholder="contact@exemple.fr"
             />
           </Field>
-          <Field
-            label="Téléphone"
-            htmlFor="telephone"
-            error={state?.fieldErrors?.telephone}
-          >
-            <Input
-              id="telephone"
-              name="telephone"
-              defaultValue={client?.telephone ?? ""}
-            />
-          </Field>
+          <div className="grid grid-cols-2 gap-4">
+            <Field
+              label="Téléphone"
+              htmlFor="telephone"
+              error={state?.fieldErrors?.telephone}
+            >
+              <Input
+                id="telephone"
+                name="telephone"
+                defaultValue={client?.telephone ?? ""}
+              />
+            </Field>
+            <Field label="Statut" error={state?.fieldErrors?.statut}>
+              <Select name="statut" defaultValue={client?.statut ?? "actif"}>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {CLIENT_STATUTS.map((s) => (
+                    <SelectItem key={s.value} value={s.value}>
+                      {s.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+          </div>
           <Field label="Notes" htmlFor="notes" error={state?.fieldErrors?.notes}>
             <Textarea id="notes" name="notes" defaultValue={client?.notes ?? ""} />
           </Field>

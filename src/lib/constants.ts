@@ -26,6 +26,34 @@ export const LIVRABLE_STATUTS: Option[] = [
   { value: "non_applicable", label: "Non applicable" },
 ];
 
+export const CLIENT_STATUTS: Option[] = [
+  { value: "prospect", label: "Prospect" },
+  { value: "actif", label: "Actif" },
+  { value: "ancien", label: "Ancien" },
+];
+
+// Ordre = progression du pipeline (F10).
+export const DEVIS_STATUTS: Option[] = [
+  { value: "brouillon", label: "Brouillon" },
+  { value: "envoye", label: "Envoyé" },
+  { value: "en_nego", label: "En négo" },
+  { value: "accepte", label: "Accepté" },
+  { value: "refuse", label: "Refusé" },
+  { value: "expire", label: "Expiré" },
+];
+
+export const CANAUX: Option[] = [
+  { value: "whatsapp", label: "WhatsApp" },
+  { value: "email", label: "E-mail" },
+  { value: "tel", label: "Téléphone" },
+  { value: "autre", label: "Autre" },
+];
+
+export const DIRECTIONS: Option[] = [
+  { value: "sortant", label: "Sortant" },
+  { value: "entrant", label: "Entrant" },
+];
+
 export function labelOf(options: Option[], value: string): string {
   return options.find((o) => o.value === value)?.label ?? value;
 }

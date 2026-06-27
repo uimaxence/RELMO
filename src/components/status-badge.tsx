@@ -1,5 +1,11 @@
 import { cn } from "@/lib/utils";
-import { labelOf, SITE_STATUTS, CONTRAT_STATUTS } from "@/lib/constants";
+import {
+  labelOf,
+  SITE_STATUTS,
+  CONTRAT_STATUTS,
+  CLIENT_STATUTS,
+  DEVIS_STATUTS,
+} from "@/lib/constants";
 
 export type StatusVariant = "ok" | "warn" | "bad" | "neutral";
 
@@ -62,6 +68,37 @@ export function ContratStatusBadge({ statut }: { statut: string }) {
   return (
     <StatusBadge variant={CONTRAT_VARIANT[statut] ?? "neutral"}>
       {labelOf(CONTRAT_STATUTS, statut)}
+    </StatusBadge>
+  );
+}
+
+const CLIENT_VARIANT: Record<string, StatusVariant> = {
+  prospect: "warn",
+  actif: "ok",
+  ancien: "neutral",
+};
+
+const DEVIS_VARIANT: Record<string, StatusVariant> = {
+  brouillon: "neutral",
+  envoye: "warn",
+  en_nego: "warn",
+  accepte: "ok",
+  refuse: "bad",
+  expire: "bad",
+};
+
+export function ClientStatusBadge({ statut }: { statut: string }) {
+  return (
+    <StatusBadge variant={CLIENT_VARIANT[statut] ?? "neutral"}>
+      {labelOf(CLIENT_STATUTS, statut)}
+    </StatusBadge>
+  );
+}
+
+export function DevisStatusBadge({ statut }: { statut: string }) {
+  return (
+    <StatusBadge variant={DEVIS_VARIANT[statut] ?? "neutral"}>
+      {labelOf(DEVIS_STATUTS, statut)}
     </StatusBadge>
   );
 }

@@ -10,6 +10,7 @@ export const clientSchema = z.object({
     z.email("Email invalide.").optional(),
   ),
   telephone: optionalString,
+  statut: z.enum(["prospect", "actif", "ancien"]),
   notes: optionalString,
 });
 
@@ -47,4 +48,46 @@ export const engagementSchema = z.object({
     .int("Nombre entier attendu.")
     .min(0, "La quantité doit être positive."),
   recurrence: z.enum(["mensuelle", "hebdomadaire", "a_la_demande"]),
+});
+
+const montant = (msg: string) =>
+  z.coerce.number({ message: msg }).min(0, "Doit être positif.");
+
+export const devisSchema = z.object({
+  clientId: z.string().min(1, requis),
+  siteId: z.preprocess(
+    (v) => (v === "" || v === "none" || v === null ? undefined : v),
+    z.string().optional(),
+  ),
+  libelle: z.string().trim().min(1, requis),
+  montantCreation: montant("Montant de création invalide."),
+  montantMensuelPropose: montant("Montant mensuel invalide."),
+  statut: z.enum([
+    "brouillon",
+    "envoye",
+    "en_nego",
+    "accepte",
+    "refuse",
+    "expire",
+  ]),
+  dateEnvoi: optionalDate,
+  dateRelance: optionalDate,
+  note: optionalString,
+});
+
+export const interactionSchema = z.object({
+  clientId: z.string().min(1, requis),
+  devisId: optionalString,
+  canal: z.enum(["whatsapp", "email", "tel", "autre"]),
+  direction: z.enum(["entrant", "sortant"]),
+  date: z.coerce.date({ message: "Date invalide." }),
+  resume: z.string().trim().min(1, requis),
+  contenu: optionalString,
+});
+
+export const objectifSchema = z.object({
+  montantCible: montant("Cible invalide."),
+  mrrDepart: montant("MRR de départ invalide."),
+  dateDebut: z.coerce.date({ message: "Date de début invalide." }),
+  dateCible: z.coerce.date({ message: "Date cible invalide." }),
 });

@@ -1,4 +1,10 @@
-import { LayoutDashboard, Users, ListChecks, Euro } from "lucide-react";
+import {
+  LayoutDashboard,
+  Users,
+  ListChecks,
+  Euro,
+  Handshake,
+} from "lucide-react";
 
 // Source unique de la navigation (sidebar + fil d'Ariane du header).
 export type NavItem = {
@@ -17,6 +23,7 @@ export const NAV: NavItem[] = [
     icon: Users,
     match: (p) => p.startsWith("/clients") || p.startsWith("/sites"),
   },
+  { title: "Pipeline & devis", href: "/pipeline", icon: Handshake },
   { title: "Livrables du mois", href: "/livrables", icon: ListChecks },
   { title: "MRR", href: "/mrr", icon: Euro },
 ];

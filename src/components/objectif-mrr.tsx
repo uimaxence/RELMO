@@ -1,44 +1,59 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { StatusBadge } from "@/components/status-badge";
+import { ObjectifFormDialog } from "@/components/forms/objectif-form-dialog";
 import { euros } from "@/lib/format";
 import { periodeLabel } from "@/lib/periode";
+import { computeObjectif } from "@/lib/objectif";
 
 const SEGMENTS = 40;
 
-// Carte « Objectif MRR » : avancement du récurrent vers la cible (cf. style-guide).
+type Objectif = {
+  id: string;
+  montantCible: number;
+  mrrDepart: number;
+  dateDebut: Date;
+  dateCible: Date;
+};
+
+// Carte « Objectif MRR » (F11) : avancement réel + overlay pipeline (devis en négo).
 export function ObjectifMrr({
+  objectif,
   current,
-  cible,
-  ciblePeriode,
+  potentiel,
   now = new Date(),
 }: {
+  objectif: Objectif;
   current: number;
-  cible: number;
-  ciblePeriode: string;
+  potentiel: number; // MRR potentiel en pipeline
   now?: Date;
 }) {
-  const ratio = cible > 0 ? current / cible : 0;
-  const pct = Math.min(100, Math.round(ratio * 100));
-  const filled = current > 0 ? Math.max(1, Math.round(SEGMENTS * Math.min(ratio, 1))) : 0;
+  const c = computeObjectif(objectif, current, now);
+  const cibleLabel = `${objectif.dateCible.getFullYear()}-${String(objectif.dateCible.getMonth() + 1).padStart(2, "0")}`;
 
-  const [ty, tm] = ciblePeriode.split("-").map(Number);
-  const monthsRemaining = Math.max(
-    1,
-    (ty - now.getFullYear()) * 12 + (tm - 1 - now.getMonth()),
+  // Segments : encre = réalisé, teal pâle = pipeline potentiel, sinon vide.
+  const span = Math.max(1, objectif.montantCible - objectif.mrrDepart);
+  const fillCurrent = Math.round(
+    SEGMENTS * Math.max(0, Math.min(1, (current - objectif.mrrDepart) / span)),
   );
-  const rythme = Math.max(0, (cible - current) / monthsRemaining);
-  const atteint = current >= cible;
+  const fillPotentiel = Math.round(
+    SEGMENTS *
+      Math.max(
+        0,
+        Math.min(1, (current + potentiel - objectif.mrrDepart) / span),
+      ),
+  );
 
   return (
     <Card>
       <CardContent className="space-y-4 pt-6">
         <div className="flex items-center justify-between gap-3">
           <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            Objectif MRR · cap {euros(cible)}
+            Objectif MRR · cap {euros(objectif.montantCible)}
           </span>
-          <StatusBadge variant={atteint ? "ok" : "warn"}>
-            {atteint ? "Atteint" : "À surveiller"}
-          </StatusBadge>
+          <div className="flex items-center gap-1">
+            <StatusBadge variant={c.statut}>{c.statutLabel}</StatusBadge>
+            <ObjectifFormDialog objectif={objectif} />
+          </div>
         </div>
 
         <div className="flex flex-wrap items-baseline gap-x-2">
@@ -46,7 +61,7 @@ export function ObjectifMrr({
             {euros(current)}
           </span>
           <span className="text-sm text-muted-foreground">
-            / {euros(cible)} · cible {periodeLabel(ciblePeriode)}
+            / {euros(objectif.montantCible)} · cible {periodeLabel(cibleLabel)}
           </span>
         </div>
 
@@ -55,7 +70,11 @@ export function ObjectifMrr({
             <span
               key={i}
               className={`h-5 flex-1 rounded-[3px] ${
-                i < filled ? "bg-foreground" : "bg-muted"
+                i < fillCurrent
+                  ? "bg-foreground"
+                  : i < fillPotentiel
+                    ? "bg-brand/30"
+                    : "bg-muted"
               }`}
             />
           ))}
@@ -65,16 +84,25 @@ export function ObjectifMrr({
           <span>
             Avancement{" "}
             <span className="font-mono font-medium text-foreground tabular-nums">
-              {pct}%
+              {c.pct}%
             </span>
           </span>
-          {!atteint ? (
+          {!c.atteint ? (
             <span>
               Rythme requis{" "}
               <span className="font-mono font-medium text-foreground tabular-nums">
-                +{euros(rythme)}/mois
+                +{euros(c.rythmeRequis)}/mois
               </span>{" "}
-              sur {monthsRemaining} mois
+              sur {c.moisRestants} mois
+            </span>
+          ) : null}
+          {potentiel > 0 ? (
+            <span>
+              Pipeline{" "}
+              <span className="font-mono font-medium text-brand tabular-nums">
+                +{euros(potentiel)}
+              </span>{" "}
+              si tout signe
             </span>
           ) : null}
         </div>

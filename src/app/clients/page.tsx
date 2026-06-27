@@ -4,6 +4,7 @@ import { ChevronRight, Pencil } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { PageHeader } from "@/components/page-header";
 import { ClientFormDialog } from "@/components/forms/client-form-dialog";
+import { ClientStatusBadge } from "@/components/status-badge";
 import { ConfirmDelete } from "@/components/forms/confirm-delete";
 import { deleteClient } from "@/app/actions/clients";
 import { Button } from "@/components/ui/button";
@@ -69,13 +70,16 @@ export default async function ClientsPage() {
               {rows.map((c) => (
                 <TableRow key={c.id}>
                   <TableCell className="font-medium">
-                    <Link
-                      href={`/clients/${c.id}`}
-                      className="inline-flex items-center gap-1 hover:underline"
-                    >
-                      {c.nom}
-                      <ChevronRight className="size-4 text-muted-foreground" />
-                    </Link>
+                    <span className="inline-flex items-center gap-2">
+                      <Link
+                        href={`/clients/${c.id}`}
+                        className="inline-flex items-center gap-1 hover:underline"
+                      >
+                        {c.nom}
+                        <ChevronRight className="size-4 text-muted-foreground" />
+                      </Link>
+                      <ClientStatusBadge statut={c.statut} />
+                    </span>
                   </TableCell>
                   <TableCell className="text-muted-foreground">
                     {c.email ?? "—"}

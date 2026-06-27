@@ -16,11 +16,14 @@ model Client {
   nom       String
   email     String?
   telephone String?
+  statut    String   @default("actif") // prospect | actif | ancien
   notes     String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  sites Site[]
+  sites        Site[]
+  devis        Devis[]
+  interactions Interaction[]
 }
 
 // Un site géré pour un client (1 client -> 0..n sites).
@@ -41,6 +44,7 @@ model Site {
 
   client    Client     @relation(fields: [clientId], references: [id], onDelete: Cascade)
   contrats  Contrat[]
+  devis     Devis[]
 
   @@index([clientId])
 }
@@ -51,14 +55,17 @@ model Contrat {
   siteId         String
   libelle        String
   montantMensuel Float     @default(0) // en euros
+  montantCreation Float    @default(0) // one-shot (hors MRR)
   dateDebut      DateTime  @default(now())
   dateFin        DateTime?
   statut         String    @default("actif") // actif | en_pause | resilie
   note           String?
+  devisId        String?   @unique // devis à l'origine du contrat
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
   site        Site         @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  devis       Devis?       @relation(fields: [devisId], references: [id])
   engagements Engagement[]
 
   @@index([siteId])
@@ -98,4 +105,63 @@ model Livrable {
 
   @@index([engagementId])
   @@index([periode])
+}
+
+// --- V1.5 : pilotage commercial & objectif ---
+
+// Une proposition commerciale (F10). Un devis accepté se convertit en Contrat.
+model Devis {
+  id                    String    @id @default(cuid())
+  clientId              String
+  siteId                String? // site visé (optionnel tant que pas signé)
+  libelle               String
+  montantCreation       Float     @default(0)
+  montantMensuelPropose Float     @default(0)
+  statut                String    @default("brouillon") // brouillon | envoye | en_nego | accepte | refuse | expire
+  dateEnvoi             DateTime?
+  dateRelance           DateTime?
+  dateDecision          DateTime?
+  note                  String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  client       Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  site         Site?         @relation(fields: [siteId], references: [id], onDelete: SetNull)
+  contrat      Contrat? // contrat issu de ce devis (si accepté)
+  interactions Interaction[]
+
+  @@index([clientId])
+  @@index([statut])
+}
+
+// Un échange de négo journalisé (F10). Saisie rapide.
+model Interaction {
+  id            String   @id @default(cuid())
+  clientId      String
+  devisId       String?
+  canal         String // whatsapp | email | tel | autre
+  direction     String   @default("sortant") // entrant | sortant
+  date          DateTime @default(now())
+  resume        String
+  contenu       String?
+  pieceJointeUrl String?
+  createdAt     DateTime @default(now())
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  devis  Devis? @relation(fields: [devisId], references: [id], onDelete: SetNull)
+
+  @@index([clientId])
+}
+
+// Le cap de MRR à atteindre (F11). Un seul actif à la fois en pratique.
+model ObjectifMRR {
+  id           String   @id @default(cuid())
+  montantCible Float     @default(3000)
+  mrrDepart    Float     @default(0)
+  dateDebut    DateTime  @default(now())
+  dateCible    DateTime
+  actif        Boolean   @default(true)
+  note         String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 }

@@ -23,7 +23,7 @@ import { Badge } from "@/components/ui/badge";
 import { ObjectifMrr } from "@/components/objectif-mrr";
 import { euros, dateFr } from "@/lib/format";
 import { currentPeriode, periodeLabel } from "@/lib/periode";
-import { MRR_OBJECTIF } from "@/lib/config";
+import { ensureObjectif } from "@/lib/objectif";
 
 // Lit la DB : on veut les chiffres en direct, pas un snapshot de build.
 export const dynamic = "force-dynamic";
@@ -32,8 +32,16 @@ export default async function DashboardPage() {
   const periode = currentPeriode();
   const now = new Date();
 
-  const [clients, sites, contratsActifs, mrrAgg, aVenirAgg, livrables, upcoming] =
-    await Promise.all([
+  const [
+    clients,
+    sites,
+    contratsActifs,
+    mrrAgg,
+    aVenirAgg,
+    livrables,
+    upcoming,
+    potentielAgg,
+  ] = await Promise.all([
       prisma.client.count(),
       prisma.site.count(),
       prisma.contrat.count({ where: { statut: "actif" } }),
@@ -58,10 +66,17 @@ export default async function DashboardPage() {
         orderBy: { dateDebut: "asc" },
         include: { site: { include: { client: true } } },
       }),
+      // MRR potentiel : devis en négociation.
+      prisma.devis.aggregate({
+        _sum: { montantMensuelPropose: true },
+        where: { statut: "en_nego" },
+      }),
     ]);
 
   const mrr = mrrAgg._sum.montantMensuel ?? 0;
   const aVenir = aVenirAgg._sum.montantMensuel ?? 0;
+  const potentiel = potentielAgg._sum.montantMensuelPropose ?? 0;
+  const objectif = await ensureObjectif();
 
   // Progression des livrables par site sur la période courante.
   const parSite = new Map<
@@ -139,11 +154,7 @@ export default async function DashboardPage() {
         ))}
       </div>
 
-      <ObjectifMrr
-        current={mrr}
-        cible={MRR_OBJECTIF.cible}
-        ciblePeriode={MRR_OBJECTIF.ciblePeriode}
-      />
+      <ObjectifMrr objectif={objectif} current={mrr} potentiel={potentiel} />
 
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Livrables du mois par site */}

@@ -1,18 +1,21 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ChevronRight, Pencil, Globe, Mail, Phone } from "lucide-react";
+import { ChevronRight, Pencil, Globe, Mail, Phone, X } from "lucide-react";
 
 import { prisma } from "@/lib/db";
 import { PageHeader } from "@/components/page-header";
 import { ClientFormDialog } from "@/components/forms/client-form-dialog";
 import { SiteFormDialog } from "@/components/forms/site-form-dialog";
+import { InteractionFormDialog } from "@/components/forms/interaction-form-dialog";
 import { ConfirmDelete } from "@/components/forms/confirm-delete";
 import { deleteClient } from "@/app/actions/clients";
 import { deleteSite } from "@/app/actions/sites";
+import { deleteInteraction } from "@/app/actions/interactions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { SiteStatusBadge } from "@/components/status-badge";
-import { euros } from "@/lib/format";
+import { SiteStatusBadge, ClientStatusBadge } from "@/components/status-badge";
+import { euros, dateFr } from "@/lib/format";
+import { labelOf, CANAUX } from "@/lib/constants";
 
 export const dynamic = "force-dynamic";
 
@@ -31,6 +34,7 @@ export default async function ClientDetailPage({
         orderBy: { nom: "asc" },
         include: { contrats: true },
       },
+      interactions: { orderBy: { date: "desc" } },
     },
   });
 
@@ -46,6 +50,8 @@ export default async function ClientDetailPage({
           ← Clients
         </Link>
         <PageHeader title={client.nom}>
+          <ClientStatusBadge statut={client.statut} />
+          <InteractionFormDialog clientId={client.id} />
           <ClientFormDialog
             client={client}
             trigger={
@@ -150,6 +156,59 @@ export default async function ClientDetailPage({
               );
             })}
           </div>
+        )}
+      </div>
+
+      <div>
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-lg font-semibold">
+            Échanges ({client.interactions.length})
+          </h2>
+          <InteractionFormDialog clientId={client.id} />
+        </div>
+        {client.interactions.length === 0 ? (
+          <Card>
+            <CardContent className="py-8 text-center text-sm text-muted-foreground">
+              Aucun échange journalisé. Note tes négos (WhatsApp, mail, tél) ici.
+            </CardContent>
+          </Card>
+        ) : (
+          <Card>
+            <ul className="divide-y">
+              {client.interactions.map((it) => (
+                <li
+                  key={it.id}
+                  className="flex items-start justify-between gap-3 px-4 py-3"
+                >
+                  <div className="min-w-0 space-y-0.5">
+                    <p className="text-sm">{it.resume}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {dateFr(it.date)} · {labelOf(CANAUX, it.canal)} ·{" "}
+                      {it.direction === "entrant" ? "reçu" : "envoyé"}
+                    </p>
+                    {it.contenu ? (
+                      <p className="whitespace-pre-wrap pt-1 text-sm text-muted-foreground">
+                        {it.contenu}
+                      </p>
+                    ) : null}
+                  </div>
+                  <ConfirmDelete
+                    action={deleteInteraction.bind(null, it.id, client.id)}
+                    description="Supprimer cet échange ?"
+                    trigger={
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label="Supprimer l'échange"
+                      >
+                        <X className="text-muted-foreground" />
+                      </Button>
+                    }
+                  />
+                </li>
+              ))}
+            </ul>
+          </Card>
         )}
       </div>
     </div>
