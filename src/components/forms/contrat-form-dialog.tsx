@@ -38,6 +38,7 @@ type ContratLite = {
   dateFin: Date | string | null;
   statut: string;
   note: string | null;
+  motifResiliation: string | null;
 };
 
 export function ContratFormDialog({
@@ -166,6 +167,19 @@ export function ContratFormDialog({
             error={state?.fieldErrors?.note}
           >
             <Textarea id="note" name="note" defaultValue={contrat?.note ?? ""} />
+          </Field>
+
+          <Field
+            label="Motif de résiliation"
+            htmlFor="motifResiliation"
+            hint="Si résilié : pourquoi (budget, mécontentement, fin de besoin…)"
+            error={state?.fieldErrors?.motifResiliation}
+          >
+            <Input
+              id="motifResiliation"
+              name="motifResiliation"
+              defaultValue={contrat?.motifResiliation ?? ""}
+            />
           </Field>
           <DialogFooter>
             <Button type="submit" disabled={pending}>

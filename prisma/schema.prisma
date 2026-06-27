@@ -63,6 +63,7 @@ model Contrat {
   dateFin        DateTime?
   statut         String    @default("actif") // actif | en_pause | resilie
   note           String?
+  motifResiliation String? // si résilié : pourquoi (signal de churn — F14)
   devisId        String?   @unique // devis à l'origine du contrat
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
@@ -168,4 +169,31 @@ model ObjectifMRR {
   note         String?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
+}
+
+// Photo mensuelle du MRR (historique → courbe d'évolution + deltas).
+model MrrSnapshot {
+  id         String   @id @default(cuid())
+  periode    String   @unique // AAAA-MM
+  mrr        Float    @default(0)
+  potentiel  Float    @default(0)
+  nbClients  Int      @default(0)
+  nbContrats Int      @default(0)
+  capturedAt DateTime @default(now())
+}
+
+// To-do quotidienne générée (F12).
+model Tache {
+  id         String   @id @default(cuid())
+  date       String // AAAA-MM-JJ
+  libelle    String
+  type       String   @default("autre") // livrable | relance_devis | prospection | technique | autre
+  refType    String? // livrable | devis | client
+  refId      String?
+  priorite   String   @default("normale") // basse | normale | haute
+  statut     String   @default("a_faire") // a_faire | fait | reporte
+  genereAuto Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  @@index([date])
 }

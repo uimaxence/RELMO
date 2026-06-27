@@ -43,6 +43,7 @@ export const contratSchema = z.object({
   dateFin: optionalDate,
   statut: z.enum(["actif", "en_pause", "resilie"]),
   note: optionalString,
+  motifResiliation: optionalString,
 });
 
 export const engagementSchema = z.object({

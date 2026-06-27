@@ -15,9 +15,11 @@ import { ObjectifMrr } from "@/components/objectif-mrr";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { VenduVsLivre } from "@/components/dashboard/vendu-vs-livre";
 import { AiBanner } from "@/components/dashboard/ai-banner";
+import { MrrEvolutionChart } from "@/components/dashboard/mrr-evolution";
 import { euros, dateFr } from "@/lib/format";
-import { currentPeriode, periodeLabel } from "@/lib/periode";
+import { currentPeriode, periodeLabel, shiftPeriode } from "@/lib/periode";
 import { ensureObjectif } from "@/lib/objectif";
+import { captureSnapshot, getSnapshots } from "@/lib/mrr-snapshot";
 
 // Lit la DB : on veut les chiffres en direct, pas un snapshot de build.
 export const dynamic = "force-dynamic";
@@ -72,6 +74,19 @@ export default async function DashboardPage() {
   const potentiel = potentielAgg._sum.montantMensuelPropose ?? 0;
   const objectif = await ensureObjectif();
 
+  // Historique MRR : on enregistre le mois courant, puis on lit la série.
+  await captureSnapshot(periode);
+  const snapshots = await getSnapshots();
+  const prevSnap = snapshots.find((s) => s.periode === shiftPeriode(periode, -1));
+  const mrrDelta =
+    prevSnap && prevSnap.mrr > 0
+      ? Math.round(((mrr - prevSnap.mrr) / prevSnap.mrr) * 1000) / 10
+      : undefined;
+  const evolutionData = snapshots.map((s) => ({
+    label: periodeLabel(s.periode).split(" ")[0],
+    mrr: s.mrr,
+  }));
+
   // Progression des livrables par site sur la période courante.
   const parSite = new Map<
     string,
@@ -112,6 +127,7 @@ export default async function DashboardPage() {
       label: "MRR facturé",
       value: euros(mrr),
       icon: Euro,
+      delta: mrrDelta,
       hint: aVenir > 0 ? `+ ${euros(aVenir)} à venir` : "Contrats démarrés",
     },
     {
@@ -149,11 +165,34 @@ export default async function DashboardPage() {
             value={kpi.value}
             hint={kpi.hint}
             icon={kpi.icon}
+            delta={(kpi as { delta?: number }).delta}
           />
         ))}
       </div>
 
       <ObjectifMrr objectif={objectif} current={mrr} potentiel={potentiel} />
+
+      <Card>
+        <CardHeader className="flex flex-row items-end justify-between space-y-0">
+          <div>
+            <CardTitle className="text-base">Évolution du MRR</CardTitle>
+            <CardDescription>MRR facturé, mois après mois.</CardDescription>
+          </div>
+          <span className="font-mono text-2xl font-medium tabular-nums">
+            {euros(mrr)}
+          </span>
+        </CardHeader>
+        <CardContent>
+          {evolutionData.length >= 2 ? (
+            <MrrEvolutionChart data={evolutionData} />
+          ) : (
+            <p className="py-8 text-center text-sm text-muted-foreground">
+              L&apos;historique se construit mois après mois — la courbe
+              apparaîtra dès le 2ᵉ mois enregistré.
+            </p>
+          )}
+        </CardContent>
+      </Card>
 
       <div className="grid gap-6 lg:grid-cols-2">
         <VenduVsLivre items={venduItems} periode={periodeLabel(periode)} />

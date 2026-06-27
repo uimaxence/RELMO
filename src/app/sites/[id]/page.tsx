@@ -173,6 +173,11 @@ export default async function SiteDetailPage({
                       {contrat.note}
                     </p>
                   ) : null}
+                  {contrat.statut === "resilie" && contrat.motifResiliation ? (
+                    <p className="text-sm text-negative-ink">
+                      Résilié : {contrat.motifResiliation}
+                    </p>
+                  ) : null}
                 </CardHeader>
                 <CardContent>
                   <Separator className="mb-3" />

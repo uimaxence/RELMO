@@ -27,10 +27,15 @@ export const dynamic = "force-dynamic";
 export default async function MrrPage() {
   const now = new Date();
 
-  const clients = await prisma.client.findMany({
-    orderBy: { nom: "asc" },
-    include: { sites: { include: { contrats: true } } },
-  });
+  const [clients, devisAll] = await Promise.all([
+    prisma.client.findMany({
+      orderBy: { nom: "asc" },
+      include: { sites: { include: { contrats: true } } },
+    }),
+    prisma.devis.findMany({
+      select: { statut: true, client: { select: { source: true } } },
+    }),
+  ]);
 
   const rows = clients.map((c) => {
     const contrats = c.sites.flatMap((s) => s.contrats);
@@ -86,12 +91,27 @@ export default async function MrrPage() {
     g.nbClients += 1;
     parSource.set(key, g);
   }
+  // Win-rate par source : devis gagnés / (gagnés + perdus).
+  const winMap = new Map<string, { won: number; lost: number }>();
+  for (const d of devisAll) {
+    const key = d.client.source ?? "non_precise";
+    const g = winMap.get(key) ?? { won: 0, lost: 0 };
+    if (d.statut === "accepte") g.won += 1;
+    else if (d.statut === "refuse" || d.statut === "expire") g.lost += 1;
+    winMap.set(key, g);
+  }
+
   const sourceRows = [...parSource.entries()]
-    .map(([key, v]) => ({
-      key,
-      label: key === "non_precise" ? "Non précisé" : labelOf(SOURCES, key),
-      ...v,
-    }))
+    .map(([key, v]) => {
+      const w = winMap.get(key) ?? { won: 0, lost: 0 };
+      const decided = w.won + w.lost;
+      return {
+        key,
+        label: key === "non_precise" ? "Non précisé" : labelOf(SOURCES, key),
+        ...v,
+        winRate: decided > 0 ? Math.round((w.won / decided) * 100) : null,
+      };
+    })
     .sort((a, b) => b.mrr - a.mrr || b.nbClients - a.nbClients);
 
   const kpis = [
@@ -194,6 +214,7 @@ export default async function MrrPage() {
               <TableRow>
                 <TableHead className="pl-6">Source</TableHead>
                 <TableHead className="text-center">Clients</TableHead>
+                <TableHead className="text-center">Win-rate</TableHead>
                 <TableHead className="pr-6 text-right">MRR facturé</TableHead>
               </TableRow>
             </TableHeader>
@@ -203,6 +224,9 @@ export default async function MrrPage() {
                   <TableCell className="pl-6 font-medium">{r.label}</TableCell>
                   <TableCell className="text-center font-mono tabular-nums">
                     {r.nbClients}
+                  </TableCell>
+                  <TableCell className="text-center font-mono tabular-nums text-muted-foreground">
+                    {r.winRate !== null ? `${r.winRate}%` : "—"}
                   </TableCell>
                   <TableCell className="pr-6 text-right font-mono font-medium tabular-nums">
                     {euros(r.mrr)}

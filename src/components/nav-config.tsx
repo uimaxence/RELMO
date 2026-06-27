@@ -1,5 +1,6 @@
 import {
   LayoutDashboard,
+  ListTodo,
   Users,
   ListChecks,
   Euro,
@@ -17,6 +18,7 @@ export type NavItem = {
 
 export const NAV: NavItem[] = [
   { title: "Tableau de bord", href: "/", icon: LayoutDashboard },
+  { title: "To-do du jour", href: "/jour", icon: ListTodo },
   {
     title: "Clients & sites",
     href: "/clients",
