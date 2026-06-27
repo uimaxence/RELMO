@@ -1,4 +1,4 @@
-# Guide d'implémentation UI — SiteFlow
+# Guide d'implémentation UI — Relmo
 
 > **La source de vérité du design est [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md)**
 > (+ la démo vivante [style-guide.html](style-guide.html)). Ce fichier-ci est le

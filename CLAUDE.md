@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-Guide pour travailler sur **SiteFlow** (repo `RELMO`). Lis aussi
+Guide pour travailler sur **Relmo** (repo `RELMO`). Lis aussi
 [design.md](design.md) **avant de créer ou modifier de l'UI**.
 
 ## Projet

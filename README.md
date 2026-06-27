@@ -1,4 +1,4 @@
-# SiteFlow
+# Relmo
 
 Cockpit mono-utilisateur pour gérer un portefeuille de sites clients en modèle
 récurrent : suivre le MRR, réconcilier ce qui est **vendu** (contrats /

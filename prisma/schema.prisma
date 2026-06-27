@@ -1,4 +1,4 @@
-// Schéma SiteFlow — cf. docs/PROJET.md §7 (Modèle de données).
+// Schéma Relmo — cf. docs/PROJET.md §7 (Modèle de données).
 // SQLite en V1 (mono-utilisateur, local). Migration Postgres possible plus tard.
 
 generator client {

@@ -21,7 +21,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "SiteFlow — gestion de portefeuille de sites",
+  title: "Relmo — gestion de portefeuille de sites",
   description:
     "Cockpit pour suivre le MRR, le vendu et le livré sur un portefeuille de sites clients.",
 };

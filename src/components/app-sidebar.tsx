@@ -25,9 +25,9 @@ export function AppSidebar() {
       <SidebarHeader className="px-3 py-4">
         <Link href="/" className="flex items-center gap-2">
           <span className="flex size-7 items-center justify-center rounded-md bg-brand text-brand-foreground text-sm font-bold">
-            S
+            R
           </span>
-          <span className="font-semibold tracking-tight">SiteFlow</span>
+          <span className="font-semibold tracking-tight">Relmo</span>
         </Link>
       </SidebarHeader>
       <SidebarContent>

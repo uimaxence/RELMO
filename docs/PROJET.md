@@ -1,7 +1,7 @@
 # Projet · Outil de gestion de portefeuille de sites clients
 
 > Document de cadrage. Sert de contexte de référence pour le développement (notamment avec Claude Code).
-> Nom de travail : **SiteFlow** _(placeholder · à remplacer)_.
+> Nom de travail : **Relmo** _(placeholder · à remplacer)_.
 > Statut : spec initiale. Tout ce qui suit est versionnable et amené à évoluer.
 
 ---

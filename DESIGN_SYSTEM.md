@@ -1,4 +1,4 @@
-# SiteFlow · Design System
+# Relmo · Design System
 
 > Système graphique de l'outil. Sert de source de vérité pour le dev (Claude Code, Tailwind).
 > Direction : dashboard data **monochrome, éditorial, calme**, dérivée de la réf fournie.
@@ -199,10 +199,10 @@ Trois rôles, deux familles. Pile recommandée alignée sur le stack Next.js.
 
 ## 5. Nav latérale
 
-Structure groupée, reprise de la réf, **renommée pour SiteFlow** :
+Structure groupée, reprise de la réf, **renommée pour Relmo** :
 
 ```
-[◈ SiteFlow / Mon agence]            ← sélecteur en haut, pastille + chevrons
+[◈ Relmo / Mon agence]            ← sélecteur en haut, pastille + chevrons
 
 PILOTAGE
   ▸ Dashboard            (actif)
@@ -309,7 +309,7 @@ Le mouvement sert la lecture (d'où vient un chiffre, où on en est), il n'amuse
 
 ## 9. Éléments signature (l'audace, concentrée)
 
-Deux composants qui n'existent que pour SiteFlow et portent tout le concept (réconciliation contrat↔livrable + objectif). C'est là qu'on met l'effort ; le reste reste sobre.
+Deux composants qui n'existent que pour Relmo et portent tout le concept (réconciliation contrat↔livrable + objectif). C'est là qu'on met l'effort ; le reste reste sobre.
 
 ### 9.1 Barres « Vendu vs Livré »
 Repris du *Revenue Breakdown* (barre réelle noire + barre fantôme grise). Ici :
