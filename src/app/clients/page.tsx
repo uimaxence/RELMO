@@ -81,7 +81,7 @@ export default async function ClientsPage() {
                     {c.email ?? "—"}
                   </TableCell>
                   <TableCell className="text-center">{c.nbSites}</TableCell>
-                  <TableCell className="text-right font-medium">
+                  <TableCell className="text-right font-mono font-medium tabular-nums">
                     {euros(c.mrr)}
                   </TableCell>
                   <TableCell>

@@ -1,41 +1,57 @@
 # Design system — SiteFlow
 
 > Référence à suivre pour **chaque nouvel élément d'UI**. But : un outil interne
-> sobre, lisible, cohérent. On part de shadcn/ui (preset `radix-nova`, Tailwind v4)
-> + du kit de design issu du block `@efferd/dashboard-4`, teinté de notre marque.
+> sobre, lisible, **éditorial**. Base = shadcn/ui (preset `radix-nova`, Tailwind v4)
+> + le kit `@efferd/dashboard-4`. La **maquette de référence vivante** est
+> [style-guide.html](style-guide.html) (ouvre-la dans un navigateur) — elle prime
+> pour le visuel ; ce fichier en est la traduction en règles.
 
-## 1. Couleur de marque
+## 1. Couleurs
 
-**Teal `#2A9D8F`** → `oklch(0.63 0.101 183)` (clair) / `oklch(0.78 0.101 183)` (dark).
+Direction : **palette chaude monochrome** (pas de blanc ni de noir purs), l'encre
+porte l'action, les **statuts** apportent la couleur, et le **teal de marque** est
+une **touche** discrète. Tout est dans [src/app/globals.css](src/app/globals.css).
 
-C'est une **touche**, pas un aplat partout. Définie dans
-[src/app/globals.css](src/app/globals.css) sur les tokens :
+### Base neutre (tokens sémantiques — à toujours utiliser)
 
-| Token | Rôle |
-|---|---|
-| `--primary` | Boutons d'action, états actifs, accents clés |
-| `--ring` | Anneaux de focus |
-| `--sidebar-primary` / `--sidebar-ring` | Onglet actif / focus dans la sidebar |
-| `--chart-1` | Première série de graphe (les charts mènent avec la marque) |
+| Rôle | Token | Clair |
+|---|---|---|
+| Fond appli (canvas) | `--background` | `#F4F4F1` |
+| Surface (cartes) | `--card` | `#FFFFFF` |
+| Creux (hover, muted) | `--muted` / `--secondary` | `#F1F1ED` |
+| Encre (texte, actions) | `--foreground` / `--primary` | `#1A1A17` |
+| Encre douce | `--muted-foreground` | `#6B6B63` |
+| Bordure | `--border` | `#E7E7E1` |
+| Destructif | `--destructive` | `#C2452D` |
 
-➡️ **Règle : ne jamais coder une couleur en dur.** Toujours passer par les tokens
-sémantiques (`bg-primary`, `text-primary`, `border-border`, `bg-muted`,
-`text-muted-foreground`, `bg-card`…). Ils gèrent le dark mode automatiquement.
+### Marque (la touche teal)
 
-### Couleurs sémantiques de statut (exceptions tolérées)
-Pour les états métier, on utilise des teintes Tailwind explicites, en `/10`–`/40` :
-- **Fait / OK** → `emerald` (ex. `bg-emerald-500/10 text-emerald-700`)
-- **À faire / en retard / attention** → `amber`
-- **Erreur / suppression** → token `destructive`
-- **Neutre / secondaire** → `Badge variant="secondary"`, `text-muted-foreground`
+**Teal `#2A9D8F`**, exposé via le token **`--brand`** (`bg-brand`, `text-brand`).
+Usage **restreint** : le mark « S » de la sidebar, l'anneau de focus (`--ring`),
+la 1ʳᵉ série de graphe (`--chart-1`). **Pas** sur les boutons primaires (eux
+restent en encre, cf. maquette).
+
+➡️ **Règle : jamais de couleur en dur.** Toujours les tokens (`bg-background`,
+`bg-card`, `text-muted-foreground`, `bg-brand`, `border-border`…). Le dark mode
+suit automatiquement (variante chaude définie dans `globals.css`).
+
+### Statuts métier → `StatusBadge`
+Composant [status-badge.tsx](src/components/status-badge.tsx) (pastille + libellé).
+Quatre variantes, dark-mode-safe :
+- **`ok`** (livré, actif) → emerald · **`warn`** (à faire, en pause, à surveiller)
+  → amber · **`bad`** (en retard, résilié) → red · **`neutral`** (n/a, en négo) → muted.
+Helpers prêts : `SiteStatusBadge`, `ContratStatusBadge`.
 
 ## 2. Typographie
 
-- Police : **Geist Sans** (`--font-sans`), mono = Geist Mono.
-- **Chiffres** (montants, compteurs, KPI) : `tabular-nums tracking-tight`.
+- Police : **Geist Sans** (`--font-sans`) ; **Geist Mono** (`font-mono`) pour
+  **tous les chiffres** (KPI, montants, colonnes de table, %).
+- **Métriques / KPI** : `font-mono text-2xl font-medium tabular-nums tracking-tight`.
+- **Montants en table** : cellule `text-right font-mono tabular-nums`.
 - Titres de page : `text-2xl font-semibold tracking-tight` (via `PageHeader`).
-- Valeurs KPI : `text-2xl font-semibold tabular-nums tracking-tight`.
-- Labels secondaires : `text-sm`/`text-xs text-muted-foreground`.
+- **Label de section** (style maquette) : `text-xs font-medium uppercase
+  tracking-wider text-muted-foreground`.
+- Corps : `text-sm` ; secondaire : `text-xs text-muted-foreground`.
 
 ## 3. Layout
 
@@ -56,11 +72,20 @@ Pour les états métier, on utilise des teintes Tailwind explicites, en `/10`–
 
 ### Carte KPI / statistique
 Structure : `Card` → label `text-sm text-muted-foreground` + icône lucide à droite
-→ valeur `text-2xl font-semibold tabular-nums` → `CardDescription` (hint).
-Référence enrichie (avec indicateur de tendance) :
-[stats.tsx](src/components/stats.tsx) + [delta.tsx](src/components/delta.tsx).
+→ valeur **`font-mono text-2xl font-medium tabular-nums`** → `CardDescription` (hint).
+Référence enrichie (indicateur de tendance) : [delta.tsx](src/components/delta.tsx).
 👉 Utiliser `Delta`/`DeltaIcon`/`DeltaValue` **dès qu'on a une comparaison**
 (ex. MRR vs mois précédent, une fois l'historique en place).
+
+### Barre de progression segmentée
+Pour un avancement vers une cible (ex. [objectif-mrr.tsx](src/components/objectif-mrr.tsx)) :
+une rangée de petits segments (`flex gap-[3px]`, `flex-1 rounded-[3px] h-5`), remplis
+en `bg-foreground`, vides en `bg-muted`. **Jamais de gros bloc plein** (principe
+maquette : densité par petits carrés).
+
+### Badge de statut
+[`StatusBadge`](src/components/status-badge.tsx) (variantes `ok`/`warn`/`bad`/`neutral`)
+plutôt que le `Badge` brut, pour tout état métier.
 
 ### Formulaires (création / édition)
 Toujours le même squelette (cf. [src/components/forms/](src/components/forms/)) :

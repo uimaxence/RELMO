@@ -110,7 +110,7 @@ export default async function MrrPage() {
               <k.icon className="size-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-semibold tabular-nums tracking-tight">
+              <div className="font-mono text-2xl font-medium tabular-nums tracking-tight">
                 {k.value}
               </div>
               <CardDescription className="mt-1">{k.hint}</CardDescription>
@@ -144,10 +144,10 @@ export default async function MrrPage() {
                   </TableCell>
                   <TableCell className="text-center">{r.nbSites}</TableCell>
                   <TableCell className="text-center">{r.nbContratsActifs}</TableCell>
-                  <TableCell className="text-right text-muted-foreground">
+                  <TableCell className="text-right font-mono tabular-nums text-muted-foreground">
                     {r.aVenir > 0 ? euros(r.aVenir) : "—"}
                   </TableCell>
-                  <TableCell className="pr-6 text-right font-medium">
+                  <TableCell className="pr-6 text-right font-mono font-medium tabular-nums">
                     {euros(r.facture)}
                   </TableCell>
                 </TableRow>

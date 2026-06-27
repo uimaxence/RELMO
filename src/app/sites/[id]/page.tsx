@@ -13,15 +13,10 @@ import { deleteContrat } from "@/app/actions/contrats";
 import { deleteEngagement } from "@/app/actions/engagements";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { SiteStatusBadge, ContratStatusBadge } from "@/components/status-badge";
 import { euros, dateFr } from "@/lib/format";
-import {
-  labelOf,
-  SITE_STATUTS,
-  CONTRAT_STATUTS,
-  RECURRENCES,
-} from "@/lib/constants";
+import { labelOf, RECURRENCES } from "@/lib/constants";
 
 export const dynamic = "force-dynamic";
 
@@ -63,12 +58,7 @@ export default async function SiteDetailPage({
           ← {site.client.nom}
         </Link>
         <PageHeader title={site.nom}>
-          <Badge
-            variant={site.statut === "actif" ? "default" : "secondary"}
-            className="mr-1"
-          >
-            {labelOf(SITE_STATUTS, site.statut)}
-          </Badge>
+          <SiteStatusBadge statut={site.statut} />
           <SiteFormDialog
             clientId={site.clientId}
             site={site}
@@ -150,13 +140,7 @@ export default async function SiteDetailPage({
                     <div className="space-y-1">
                       <CardTitle className="flex items-center gap-2">
                         {contrat.libelle}
-                        <Badge
-                          variant={
-                            contrat.statut === "actif" ? "default" : "secondary"
-                          }
-                        >
-                          {labelOf(CONTRAT_STATUTS, contrat.statut)}
-                        </Badge>
+                        <ContratStatusBadge statut={contrat.statut} />
                       </CardTitle>
                       <p className="text-sm text-muted-foreground">
                         <span className="font-semibold text-foreground">

@@ -11,9 +11,8 @@ import { deleteClient } from "@/app/actions/clients";
 import { deleteSite } from "@/app/actions/sites";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { SiteStatusBadge } from "@/components/status-badge";
 import { euros } from "@/lib/format";
-import { labelOf, SITE_STATUTS } from "@/lib/constants";
 
 export const dynamic = "force-dynamic";
 
@@ -124,9 +123,7 @@ export default async function ClientDetailPage({
                         </a>
                       ) : null}
                     </div>
-                    <Badge variant={site.statut === "actif" ? "default" : "secondary"}>
-                      {labelOf(SITE_STATUTS, site.statut)}
-                    </Badge>
+                    <SiteStatusBadge statut={site.statut} />
                   </CardHeader>
                   <CardContent className="flex items-center justify-between">
                     <div className="text-sm text-muted-foreground">

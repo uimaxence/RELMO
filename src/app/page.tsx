@@ -20,8 +20,10 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { ObjectifMrr } from "@/components/objectif-mrr";
 import { euros, dateFr } from "@/lib/format";
 import { currentPeriode, periodeLabel } from "@/lib/periode";
+import { MRR_OBJECTIF } from "@/lib/config";
 
 // Lit la DB : on veut les chiffres en direct, pas un snapshot de build.
 export const dynamic = "force-dynamic";
@@ -128,7 +130,7 @@ export default async function DashboardPage() {
               <kpi.icon className="size-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-semibold tabular-nums tracking-tight">
+              <div className="font-mono text-2xl font-medium tabular-nums tracking-tight">
                 {kpi.value}
               </div>
               <CardDescription className="mt-1">{kpi.hint}</CardDescription>
@@ -136,6 +138,12 @@ export default async function DashboardPage() {
           </Card>
         ))}
       </div>
+
+      <ObjectifMrr
+        current={mrr}
+        cible={MRR_OBJECTIF.cible}
+        ciblePeriode={MRR_OBJECTIF.ciblePeriode}
+      />
 
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Livrables du mois par site */}
