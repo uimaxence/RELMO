@@ -76,14 +76,14 @@ export function SiteFormDialog({
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>{editing ? "Modifier le site" : "Nouveau site"}</DialogTitle>
           <DialogDescription>
             Site géré pour ce client. Les contrats se gèrent depuis sa fiche.
           </DialogDescription>
         </DialogHeader>
-        <form action={formAction} className="space-y-4">
+        <form action={formAction} className="space-y-5">
           <input type="hidden" name="clientId" value={clientId} />
           <Field label="Nom" htmlFor="nom" required error={state?.fieldErrors?.nom}>
             <Input id="nom" name="nom" defaultValue={site?.nom ?? ""} autoFocus />

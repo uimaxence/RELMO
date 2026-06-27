@@ -71,7 +71,7 @@ export function ClientFormDialog({
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>
             {editing ? "Modifier le client" : "Nouveau client"}
@@ -80,7 +80,7 @@ export function ClientFormDialog({
             Coordonnées du client. Les sites se gèrent depuis sa fiche.
           </DialogDescription>
         </DialogHeader>
-        <form action={formAction} className="space-y-4">
+        <form action={formAction} className="space-y-5">
           <Field label="Nom" htmlFor="nom" required error={state?.fieldErrors?.nom}>
             <Input
               id="nom"

@@ -58,7 +58,7 @@ export function InteractionFormDialog({ clientId }: { clientId: string }) {
             Un résumé suffit. WhatsApp/mail/tél restent en saisie manuelle.
           </DialogDescription>
         </DialogHeader>
-        <form action={formAction} className="space-y-4">
+        <form action={formAction} className="space-y-5">
           <input type="hidden" name="clientId" value={clientId} />
           <div className="grid grid-cols-3 gap-4">
             <Field label="Canal" error={state?.fieldErrors?.canal}>

@@ -56,7 +56,7 @@ export function ObjectifFormDialog({ objectif }: { objectif: ObjectifLite }) {
             La cible, le point de départ et l&apos;échéance pilotent le curseur.
           </DialogDescription>
         </DialogHeader>
-        <form action={formAction} className="space-y-4">
+        <form action={formAction} className="space-y-5">
           <div className="grid grid-cols-2 gap-4">
             <Field
               label="Cible (€/mois)"

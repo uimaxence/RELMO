@@ -82,7 +82,7 @@ export function EngagementFormDialog({
             Ce qui est vendu de façon récurrente. Génère les livrables du mois.
           </DialogDescription>
         </DialogHeader>
-        <form action={formAction} className="space-y-4">
+        <form action={formAction} className="space-y-5">
           <input type="hidden" name="contratId" value={contratId} />
           <Field
             label="Libellé"

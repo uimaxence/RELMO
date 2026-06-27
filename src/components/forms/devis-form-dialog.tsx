@@ -84,7 +84,7 @@ export function DevisFormDialog({
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>{editing ? "Modifier le devis" : "Nouveau devis"}</DialogTitle>
           <DialogDescription>
@@ -92,7 +92,7 @@ export function DevisFormDialog({
             contrat.
           </DialogDescription>
         </DialogHeader>
-        <form action={formAction} className="space-y-4">
+        <form action={formAction} className="space-y-5">
           <div className="grid grid-cols-2 gap-4">
             <Field label="Client" required error={state?.fieldErrors?.clientId}>
               <Select

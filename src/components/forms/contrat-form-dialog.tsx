@@ -76,7 +76,7 @@ export function ContratFormDialog({
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl">
         <DialogHeader>
           <DialogTitle>
             {editing ? "Modifier le contrat" : "Nouveau contrat"}
@@ -86,7 +86,7 @@ export function ContratFormDialog({
             définissent ensuite sur le contrat.
           </DialogDescription>
         </DialogHeader>
-        <form action={formAction} className="space-y-4">
+        <form action={formAction} className="space-y-5">
           <input type="hidden" name="siteId" value={siteId} />
           <Field
             label="Libellé"
