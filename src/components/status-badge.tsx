@@ -3,25 +3,13 @@ import { labelOf, SITE_STATUTS, CONTRAT_STATUTS } from "@/lib/constants";
 
 export type StatusVariant = "ok" | "warn" | "bad" | "neutral";
 
-// Badge de statut « pastille + libellé » (cf. style-guide.html).
-// Teintes sémantiques, dark-mode-safe.
+// Badge de statut « pastille + libellé » (cf. DESIGN_SYSTEM.md §1.1 / style-guide).
+// Tokens sémantiques exacts de la spec, dark-mode-safe.
 const VARIANT: Record<StatusVariant, { wrap: string; dot: string }> = {
-  ok: {
-    wrap: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400",
-    dot: "bg-emerald-500",
-  },
-  warn: {
-    wrap: "bg-amber-500/10 text-amber-700 dark:text-amber-400",
-    dot: "bg-amber-500",
-  },
-  bad: {
-    wrap: "bg-red-500/10 text-red-700 dark:text-red-400",
-    dot: "bg-red-500",
-  },
-  neutral: {
-    wrap: "bg-muted text-muted-foreground",
-    dot: "bg-muted-foreground",
-  },
+  ok: { wrap: "bg-positive-bg text-positive-ink", dot: "bg-positive" },
+  warn: { wrap: "bg-warning-bg text-warning-ink", dot: "bg-warning" },
+  bad: { wrap: "bg-negative-bg text-negative-ink", dot: "bg-negative" },
+  neutral: { wrap: "bg-neutral-bg text-neutral-ink", dot: "bg-neutral-ink" },
 };
 
 export function StatusBadge({

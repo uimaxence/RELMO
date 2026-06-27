@@ -54,10 +54,18 @@ Source de vérité = variables CSS. Mapping Tailwind en §1.2.
   /* Sémantique · neutre (non applicable / archivé) */
   --neutral-ink:     #6E6E66;
   --neutral-bg:      #EFEFEA;
+
+  /* Marque · accent (teal) */
+  --brand:           #2A9D8F;
+  --brand-foreground:#FFFFFF;
 }
 ```
 
-**Règle d'accent unique :** le vert fait double emploi (succès *et* croissance MRR), ce qui est cohérent pour un outil de revenu. On n'ajoute pas d'autre couleur de marque. Si un jour il faut un accent de marque distinct, on le pose ici et on s'y tient.
+**Règle d'accent :** le vert fait double emploi (succès *et* croissance MRR). À côté,
+**un seul accent de marque** : le **teal `#2A9D8F`** (`--brand`), à usage **restreint** —
+mark de la sidebar, onglet de navigation **actif**, anneau de focus, 1ʳᵉ série de graphe.
+Jamais en aplat ni sur les boutons primaires (eux restent en encre). On n'ajoute aucune
+autre couleur de marque.
 
 ### 1.2 Mapping Tailwind v4 (`@theme`)
 
@@ -85,10 +93,18 @@ Source de vérité = variables CSS. Mapping Tailwind en §1.2.
   --color-negative-bg: #F7E7E2;
   --color-neutral-ink: #6E6E66;
   --color-neutral-bg: #EFEFEA;
+  --color-brand: #2A9D8F;
 }
 ```
 
-Usage : `bg-canvas`, `text-ink`, `border-border`, `text-positive-ink bg-positive-bg`, etc.
+Usage : `bg-canvas`, `text-ink`, `border-border`, `text-positive-ink bg-positive-bg`,
+`bg-brand` / `text-brand` (accent marque), etc.
+
+> **Implémentation (ce repo) :** la palette est branchée sur les tokens sémantiques
+> shadcn dans [src/app/globals.css](src/app/globals.css) (`--background`=canvas,
+> `--foreground`=ink, `--card`=surface, `--muted`=sunken…) **et** exposée sous les
+> noms ci-dessus (`bg-canvas`, `text-ink`, `bg-positive-bg`…). Un mode sombre chaud
+> est dérivé. Les composants shadcn suivent donc automatiquement.
 
 ---
 

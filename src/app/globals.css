@@ -37,6 +37,25 @@
   --color-primary: var(--primary);
   --color-brand: var(--brand);
   --color-brand-foreground: var(--brand-foreground);
+  /* Vocabulaire DESIGN_SYSTEM.md (alias sémantiques) */
+  --color-canvas: var(--background);
+  --color-surface: var(--card);
+  --color-sunken: var(--muted);
+  --color-ink: var(--foreground);
+  --color-ink-soft: var(--muted-foreground);
+  --color-ink-faint: var(--ink-faint);
+  --color-border-strong: var(--border-strong);
+  --color-positive: var(--positive);
+  --color-positive-ink: var(--positive-ink);
+  --color-positive-bg: var(--positive-bg);
+  --color-warning: var(--warning);
+  --color-warning-ink: var(--warning-ink);
+  --color-warning-bg: var(--warning-bg);
+  --color-negative: var(--negative);
+  --color-negative-ink: var(--negative-ink);
+  --color-negative-bg: var(--negative-bg);
+  --color-neutral-ink: var(--neutral-ink);
+  --color-neutral-bg: var(--neutral-bg);
   --color-popover-foreground: var(--popover-foreground);
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
@@ -72,6 +91,20 @@
   --accent-foreground: #1a1a17;
   --destructive: #c2452d; /* negative */
   --border: #e7e7e1;
+  --border-strong: #dad9d2;
+  --ink-faint: #a2a299;
+  /* Sémantique statut (DESIGN_SYSTEM.md §1.1) */
+  --positive: #1e9e5a;
+  --positive-ink: #15703f;
+  --positive-bg: #e7f4ec;
+  --warning: #e0930f;
+  --warning-ink: #8a5a0c;
+  --warning-bg: #faefd7;
+  --negative: #c2452d;
+  --negative-ink: #93341f;
+  --negative-bg: #f7e7e2;
+  --neutral-ink: #6e6e66;
+  --neutral-bg: #efefea;
   --input: #e7e7e1;
   --ring: #2a9d8f; /* brand */
   --chart-1: #2a9d8f; /* brand */
@@ -110,6 +143,20 @@
   --accent-foreground: #f4f4f1;
   --destructive: #e06a52;
   --border: oklch(1 0 0 / 10%);
+  --border-strong: oklch(1 0 0 / 16%);
+  --ink-faint: #6f6e66;
+  /* Sémantique statut — variantes dark */
+  --positive: #34b56e;
+  --positive-ink: #6ee0a0;
+  --positive-bg: oklch(0.6 0.13 158 / 0.14);
+  --warning: #e0a52a;
+  --warning-ink: #f0c674;
+  --warning-bg: oklch(0.72 0.13 70 / 0.15);
+  --negative: #e06a52;
+  --negative-ink: #f0a08c;
+  --negative-bg: oklch(0.6 0.16 25 / 0.18);
+  --neutral-ink: #a2a299;
+  --neutral-bg: oklch(1 0 0 / 0.07);
   --input: oklch(1 0 0 / 15%);
   --ring: #3db6a6; /* brand */
   --chart-1: #3db6a6; /* brand */
