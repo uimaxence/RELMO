@@ -114,7 +114,7 @@ export function ContratFormDialog({
                 name="montantMensuel"
                 type="number"
                 min="0"
-                step="1"
+                step="any"
                 defaultValue={contrat?.montantMensuel ?? ""}
               />
             </Field>

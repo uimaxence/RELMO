@@ -254,7 +254,7 @@ export function DevisFormDialog({
                 name="montantCreation"
                 type="number"
                 min="0"
-                step="50"
+                step="any"
                 value={creation}
                 onChange={(e) => setCreation(e.target.value)}
               />
@@ -269,7 +269,7 @@ export function DevisFormDialog({
                 name="montantMensuelPropose"
                 type="number"
                 min="0"
-                step="10"
+                step="any"
                 value={mensuel}
                 onChange={(e) => setMensuel(e.target.value)}
               />

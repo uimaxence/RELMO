@@ -69,7 +69,7 @@ export function ObjectifFormDialog({ objectif }: { objectif: ObjectifLite }) {
                 name="montantCible"
                 type="number"
                 min="0"
-                step="50"
+                step="any"
                 defaultValue={objectif.montantCible}
                 autoFocus
               />
@@ -85,7 +85,7 @@ export function ObjectifFormDialog({ objectif }: { objectif: ObjectifLite }) {
                 name="mrrDepart"
                 type="number"
                 min="0"
-                step="10"
+                step="any"
                 defaultValue={objectif.mrrDepart}
               />
             </Field>

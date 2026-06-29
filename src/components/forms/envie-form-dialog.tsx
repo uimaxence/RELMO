@@ -103,7 +103,7 @@ export function EnvieFormDialog({
                 name="prix"
                 type="number"
                 min="0"
-                step="5"
+                step="any"
                 defaultValue={envie?.prix ?? 0}
               />
             </Field>
