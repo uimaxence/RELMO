@@ -33,6 +33,18 @@ pnpm db:seed      # ⚠️ RESET : réécrit toutes les données
 Avant de conclure une tâche qui touche au code : **`pnpm build` et `pnpm lint`
 doivent passer**.
 
+## Assistant IA
+
+Couche de rédaction (prospection / devis / négo / accroches to-do) branchée sur
+**Perplexity** (recherche prospect) et **DeepSeek** (génération de texte). Réflexion
+et architecture dans [docs/IA.md](docs/IA.md). Socle dans [src/lib/ai/](src/lib/ai/)
+(`chat()` générique compatible OpenAI + `assistant.ts` métier), frontière server
+dans [src/app/actions/ai.ts](src/app/actions/ai.ts), UI réutilisable
+[ai-generate-dialog.tsx](src/components/ai/ai-generate-dialog.tsx). **À la demande
+uniquement** (jamais au chargement), brouillon toujours éditable, dégradation propre
+sans clé. Clés dans `.env` (`PERPLEXITY_API_KEY`, `DEEPSEEK_API_KEY`), cf.
+`.env.example`. La couche analytique F14 viendra plus tard sur le même socle.
+
 ## Architecture
 
 - **Lecture** : Server Components qui interrogent `prisma` directement. Mettre

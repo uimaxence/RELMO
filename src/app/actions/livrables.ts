@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { prisma } from "@/lib/db";
 import { isPeriode, contratActifSurPeriode } from "@/lib/periode";
+import { weeksInPeriode, weekLabel } from "@/lib/semaine";
 
 const STATUTS = ["a_faire", "fait", "non_applicable"] as const;
 type Statut = (typeof STATUTS)[number];
@@ -29,8 +30,33 @@ export async function generateLivrables(
   for (const e of engagements) {
     if (!contratActifSurPeriode(e.contrat, periode)) continue;
 
+    if (e.recurrence === "a_la_demande") continue; // jamais auto-généré
+
+    if (e.recurrence === "hebdomadaire") {
+      // Cadence hebdo : un livrable daté par semaine du mois (idempotent).
+      for (const semaine of weeksInPeriode(periode)) {
+        const exists = await prisma.livrable.count({
+          where: { engagementId: e.id, periode, semaine },
+        });
+        if (exists > 0) continue;
+        await prisma.livrable.create({
+          data: {
+            engagementId: e.id,
+            periode,
+            semaine,
+            libelle: `${e.libelle} · ${weekLabel(semaine).replace("Semaine du ", "sem. ")}`,
+            statut: "a_faire",
+            source: "manuel",
+          },
+        });
+        created++;
+      }
+      continue;
+    }
+
+    // Cadence mensuelle : on complète jusqu'à quantiteParMois (semaine = null).
     const existing = await prisma.livrable.count({
-      where: { engagementId: e.id, periode },
+      where: { engagementId: e.id, periode, semaine: null },
     });
     const manquants = e.quantiteParMois - existing;
     if (manquants <= 0) continue;

@@ -67,6 +67,30 @@ export const DIRECTIONS: Option[] = [
   { value: "entrant", label: "Entrant" },
 ];
 
+// To-do (Kanban hebdo).
+export const TACHE_TYPES: Option[] = [
+  { value: "livrable", label: "Livrable" },
+  { value: "relance_devis", label: "Relance devis" },
+  { value: "prospection", label: "Prospection" },
+  { value: "technique", label: "Technique" },
+  { value: "autre", label: "Autre" },
+];
+
+export const TACHE_PRIORITES: Option[] = [
+  { value: "basse", label: "Basse" },
+  { value: "normale", label: "Normale" },
+  { value: "haute", label: "Haute" },
+];
+
+// Catégories d'envies (wish-list / gamification).
+export const ENVIE_CATEGORIES: Option[] = [
+  { value: "bureau", label: "Bureau / setup" },
+  { value: "materiel", label: "Matériel / tech" },
+  { value: "formation", label: "Formation" },
+  { value: "plaisir", label: "Plaisir / loisir" },
+  { value: "autre", label: "Autre" },
+];
+
 export function labelOf(options: Option[], value: string): string {
   return options.find((o) => o.value === value)?.label ?? value;
 }

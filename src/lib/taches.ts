@@ -1,53 +1,58 @@
 import { prisma } from "@/lib/db";
 import { ensureObjectif, computeObjectif } from "@/lib/objectif";
+import {
+  weekBounds,
+  weekLabel,
+  periodeOfWeek,
+  firstWeekOfPeriode,
+} from "@/lib/semaine";
 
 function pad(n: number) {
   return String(n).padStart(2, "0");
 }
 
-export function todayKey(d: Date = new Date()) {
+export function dayKey(d: Date = new Date()) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
-export function shiftDay(dateKey: string, n: number) {
-  const [y, m, d] = dateKey.split("-").map(Number);
-  return todayKey(new Date(y, m - 1, d + n));
+async function exists(semaine: string, refType: string, refId: string) {
+  return (
+    (await prisma.tache.count({ where: { semaine, refType, refId } })) > 0
+  );
 }
 
-export function dayLabel(dateKey: string) {
-  const [y, m, d] = dateKey.split("-").map(Number);
-  return new Date(y, m - 1, d).toLocaleDateString("fr-FR", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-  });
-}
-
-export function isDayKey(v: string) {
-  return /^\d{4}-\d{2}-\d{2}$/.test(v);
-}
-
-async function exists(date: string, refType: string, refId: string) {
-  return (await prisma.tache.count({ where: { date, refType, refId } })) > 0;
-}
-
-// Génère (top-up idempotent) la to-do d'un jour à partir du réel (F12).
-export async function generateTaches(date: string) {
+// Génère (top-up idempotent) la to-do d'une SEMAINE à partir du réel (F12).
+export async function generateTachesSemaine(semaine: string) {
   let created = 0;
-  const periode = date.slice(0, 7);
+  const periode = periodeOfWeek(semaine);
+  const { start, end } = weekBounds(semaine);
+  const lundi = dayKey(start);
 
-  // 1) Livrables restants du mois.
-  const livrables = await prisma.livrable.findMany({
-    where: { periode, statut: "a_faire" },
+  // 1a) Livrables datés sur cette semaine (cadence hebdo).
+  const livrablesHebdo = await prisma.livrable.findMany({
+    where: { semaine, statut: "a_faire" },
     include: {
       engagement: { include: { contrat: { include: { site: true } } } },
     },
   });
-  for (const l of livrables) {
-    if (await exists(date, "livrable", l.id)) continue;
+
+  // 1b) Livrables mensuels (non datés) : affichés sur la 1re semaine du mois.
+  const livrablesMensuels =
+    semaine === firstWeekOfPeriode(periode)
+      ? await prisma.livrable.findMany({
+          where: { periode, semaine: null, statut: "a_faire" },
+          include: {
+            engagement: { include: { contrat: { include: { site: true } } } },
+          },
+        })
+      : [];
+
+  for (const l of [...livrablesHebdo, ...livrablesMensuels]) {
+    if (await exists(semaine, "livrable", l.id)) continue;
     await prisma.tache.create({
       data: {
-        date,
+        date: lundi,
+        semaine,
         libelle: `Livrer : ${l.libelle} · ${l.engagement.contrat.site.nom}`,
         type: "livrable",
         refType: "livrable",
@@ -59,17 +64,20 @@ export async function generateTaches(date: string) {
     created++;
   }
 
-  // 2) Devis à relancer (relance due, négo ouverte).
-  const fin = new Date(`${date}T23:59:59`);
+  // 2) Devis à relancer dans la semaine.
   const devis = await prisma.devis.findMany({
-    where: { statut: { in: ["envoye", "en_nego"] }, dateRelance: { lte: fin } },
+    where: {
+      statut: { in: ["envoye", "en_nego"] },
+      dateRelance: { gte: start, lte: end },
+    },
     include: { client: true },
   });
   for (const d of devis) {
-    if (await exists(date, "devis", d.id)) continue;
+    if (await exists(semaine, "devis", d.id)) continue;
     await prisma.tache.create({
       data: {
-        date,
+        date: lundi,
+        semaine,
         libelle: `Relancer : ${d.client.nom} · ${d.libelle}`,
         type: "relance_devis",
         refType: "devis",
@@ -89,12 +97,13 @@ export async function generateTaches(date: string) {
   });
   const c = computeObjectif(objectif, mrrAgg._sum.montantMensuel ?? 0);
   const prospExiste =
-    (await prisma.tache.count({ where: { date, type: "prospection" } })) > 0;
+    (await prisma.tache.count({ where: { semaine, type: "prospection" } })) > 0;
   if (!c.atteint && !prospExiste) {
     await prisma.tache.create({
       data: {
-        date,
-        libelle: `Prospection : viser +${Math.round(c.rythmeRequis)} €/mois ce mois pour rester dans les temps. Vends un palier, pas du 60 €.`,
+        date: lundi,
+        semaine,
+        libelle: `Prospection (${weekLabel(semaine).replace("Semaine du ", "")}) : viser +${Math.round(c.rythmeRequis)} €/mois. Vends un palier, pas du 60 €.`,
         type: "prospection",
         priorite: "haute",
         genereAuto: true,
@@ -106,9 +115,9 @@ export async function generateTaches(date: string) {
   return { created };
 }
 
-// Première visite du jour : on amorce la liste. Les jours suivants ne ré-ajoutent
-// pas ce que l'utilisateur a supprimé (bouton « Régénérer » pour compléter).
-export async function ensureTachesDuJour(date: string) {
-  const count = await prisma.tache.count({ where: { date } });
-  if (count === 0) await generateTaches(date);
+// Première visite de la semaine : on amorce la liste. Les semaines suivantes ne
+// ré-ajoutent pas ce qui a été supprimé (bouton « Régénérer » pour compléter).
+export async function ensureTachesSemaine(semaine: string) {
+  const count = await prisma.tache.count({ where: { semaine } });
+  if (count === 0) await generateTachesSemaine(semaine);
 }

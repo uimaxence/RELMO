@@ -97,6 +97,7 @@ model Livrable {
   id           String    @id @default(cuid())
   engagementId String
   periode      String // "AAAA-MM"
+  semaine      String? // lundi de la semaine "AAAA-MM-JJ" si cadence hebdo (sinon null = mensuel)
   libelle      String
   statut       String    @default("a_faire") // a_faire | fait | non_applicable
   faitLe       DateTime?
@@ -109,6 +110,7 @@ model Livrable {
 
   @@index([engagementId])
   @@index([periode])
+  @@index([semaine])
 }
 
 // --- V1.5 : pilotage commercial & objectif ---
@@ -127,6 +129,7 @@ model Devis {
   dateDecision          DateTime?
   note                  String?
   motifPerte            String? // si refusé/expiré : pourquoi (prix, timing…)
+  pdfUrl                String? // PDF du devis rattaché (importé/analysé)
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
 
@@ -182,18 +185,46 @@ model MrrSnapshot {
   capturedAt DateTime @default(now())
 }
 
+// --- Bonus : wish-list / gamification (paliers de MRR) ---
+
+// Une envie d'achat. Se « débloque » quand le MRR rend l'objet abordable
+// (prix <= Reglage.pourcentagePlafond % du MRR mensuel). Cf. src/lib/wishlist.ts.
+model Envie {
+  id        String    @id @default(cuid())
+  libelle   String
+  prix      Float     @default(0)
+  url       String? // lien produit (optionnel)
+  categorie String? // bureau | materiel | formation | plaisir | autre
+  note      String?
+  priorite  Int       @default(0) // ordre d'affichage manuel (desc)
+  achete    Boolean   @default(false)
+  acheteLe  DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+// Réglages globaux de l'app (singleton, id fixe "singleton").
+model Reglage {
+  id                 String   @id @default("singleton")
+  pourcentagePlafond Float    @default(30) // wish-list : seuil d'abordabilité (% du MRR)
+  updatedAt          DateTime @updatedAt
+}
+
 // To-do quotidienne générée (F12).
 model Tache {
   id         String   @id @default(cuid())
-  date       String // AAAA-MM-JJ
+  date       String // AAAA-MM-JJ (jour de création / d'échéance)
+  semaine    String? // lundi de la semaine "AAAA-MM-JJ" — clé du Kanban hebdo
   libelle    String
+  note       String? // détail libre (édition façon Notion)
   type       String   @default("autre") // livrable | relance_devis | prospection | technique | autre
   refType    String? // livrable | devis | client
   refId      String?
   priorite   String   @default("normale") // basse | normale | haute
-  statut     String   @default("a_faire") // a_faire | fait | reporte
+  statut     String   @default("a_faire") // a_faire | en_cours | fait | reporte
   genereAuto Boolean  @default(false)
   createdAt  DateTime @default(now())
 
   @@index([date])
+  @@index([semaine])
 }

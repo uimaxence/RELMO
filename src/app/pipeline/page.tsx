@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Pencil } from "lucide-react";
+import { Pencil, Sparkles } from "lucide-react";
 
 import { prisma } from "@/lib/db";
 import { PageHeader } from "@/components/page-header";
@@ -8,6 +8,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { DevisFormDialog } from "@/components/forms/devis-form-dialog";
 import { ConfirmDelete } from "@/components/forms/confirm-delete";
 import { ConvertDevisButton } from "@/components/convert-devis-button";
+import { AiGenerateDialog } from "@/components/ai/ai-generate-dialog";
+import { actionRelanceNego } from "@/app/actions/ai";
 import { DevisStatusBadge } from "@/components/status-badge";
 import { deleteDevis } from "@/app/actions/devis";
 import { euros, dateFr } from "@/lib/format";
@@ -146,6 +148,23 @@ export default async function PipelinePage() {
                           <ConvertDevisButton id={d.id} />
                         ) : null}
                         <div className="ml-auto flex gap-1">
+                          {["envoye", "en_nego"].includes(d.statut) ? (
+                            <AiGenerateDialog
+                              action={actionRelanceNego.bind(null, d.id)}
+                              title="Relance de négo"
+                              description={`Message pour faire avancer la négo avec ${d.client.nom}, sans casser le prix.`}
+                              providerLabel="DeepSeek"
+                              trigger={
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  aria-label="Relance IA"
+                                >
+                                  <Sparkles className="text-brand" />
+                                </Button>
+                              }
+                            />
+                          ) : null}
                           <DevisFormDialog
                             clients={clients}
                             sites={siteOpts}

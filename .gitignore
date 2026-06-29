@@ -52,3 +52,6 @@ next-env.d.ts
 
 # Prisma generated client
 /src/generated
+
+# Fichiers importés (PDF de devis, etc.)
+/public/uploads

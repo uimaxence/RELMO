@@ -81,6 +81,7 @@ export const devisSchema = z.object({
   dateRelance: optionalDate,
   note: optionalString,
   motifPerte: optionalString,
+  pdfUrl: optionalString,
 });
 
 export const interactionSchema = z.object({
@@ -91,6 +92,24 @@ export const interactionSchema = z.object({
   date: z.coerce.date({ message: "Date invalide." }),
   resume: z.string().trim().min(1, requis),
   contenu: optionalString,
+});
+
+export const envieSchema = z.object({
+  libelle: z.string().trim().min(1, requis),
+  prix: montant("Prix invalide."),
+  url: optionalString,
+  categorie: z.preprocess(
+    (v) => (v === "" || v === "none" || v === null ? undefined : v),
+    z.string().optional(),
+  ),
+  note: optionalString,
+});
+
+export const reglageSchema = z.object({
+  pourcentagePlafond: z.coerce
+    .number({ message: "Pourcentage invalide." })
+    .min(1, "Au moins 1 %.")
+    .max(100, "Au plus 100 %."),
 });
 
 export const objectifSchema = z.object({

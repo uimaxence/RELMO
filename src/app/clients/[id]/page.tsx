@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ChevronRight, Pencil, Globe, Mail, Phone, X } from "lucide-react";
+import { ChevronRight, Pencil, Globe, Mail, Phone, X, Sparkles } from "lucide-react";
 
 import { prisma } from "@/lib/db";
 import { PageHeader } from "@/components/page-header";
@@ -8,6 +8,11 @@ import { ClientFormDialog } from "@/components/forms/client-form-dialog";
 import { SiteFormDialog } from "@/components/forms/site-form-dialog";
 import { InteractionFormDialog } from "@/components/forms/interaction-form-dialog";
 import { ConfirmDelete } from "@/components/forms/confirm-delete";
+import { AiGenerateDialog } from "@/components/ai/ai-generate-dialog";
+import {
+  actionMessageProspection,
+  actionDevisBrouillon,
+} from "@/app/actions/ai";
 import { deleteClient } from "@/app/actions/clients";
 import { deleteSite } from "@/app/actions/sites";
 import { deleteInteraction } from "@/app/actions/interactions";
@@ -51,6 +56,28 @@ export default async function ClientDetailPage({
         </Link>
         <PageHeader title={client.nom}>
           <ClientStatusBadge statut={client.statut} />
+          <AiGenerateDialog
+            action={actionMessageProspection.bind(null, client.id)}
+            title="Message de prospection"
+            description="Accroche personnalisée pour décrocher un échange. Relis et édite avant d'envoyer."
+            providerLabel="Perplexity"
+            trigger={
+              <Button variant="outline">
+                <Sparkles className="text-brand" /> Prospection
+              </Button>
+            }
+          />
+          <AiGenerateDialog
+            action={actionDevisBrouillon.bind(null, client.id)}
+            title="Brouillon de devis"
+            description="Proposition commerciale indicative (montants à ajuster). Privilégie un palier, pas du 60 €."
+            providerLabel="DeepSeek"
+            trigger={
+              <Button variant="outline">
+                <Sparkles className="text-brand" /> Devis
+              </Button>
+            }
+          />
           <InteractionFormDialog clientId={client.id} />
           <ClientFormDialog
             client={client}
