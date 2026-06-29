@@ -1,6 +1,17 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ChevronRight, Pencil, Globe, Mail, Phone, X, Sparkles } from "lucide-react";
+import {
+  ChevronRight,
+  Pencil,
+  Globe,
+  Mail,
+  Phone,
+  X,
+  Sparkles,
+  FileText,
+  CheckCircle2,
+  Circle,
+} from "lucide-react";
 
 import { prisma } from "@/lib/db";
 import { PageHeader } from "@/components/page-header";
@@ -18,9 +29,14 @@ import { deleteSite } from "@/app/actions/sites";
 import { deleteInteraction } from "@/app/actions/interactions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { SiteStatusBadge, ClientStatusBadge } from "@/components/status-badge";
+import {
+  SiteStatusBadge,
+  ClientStatusBadge,
+  DevisStatusBadge,
+} from "@/components/status-badge";
 import { euros, dateFr } from "@/lib/format";
-import { labelOf, CANAUX, SOURCES } from "@/lib/constants";
+import { labelOf, CANAUX, SOURCES, TACHE_TYPES } from "@/lib/constants";
+import { currentPeriode } from "@/lib/periode";
 
 export const dynamic = "force-dynamic";
 
@@ -39,11 +55,18 @@ export default async function ClientDetailPage({
         orderBy: { nom: "asc" },
         include: { contrats: true },
       },
+      devis: { orderBy: { updatedAt: "desc" } },
       interactions: { orderBy: { date: "desc" } },
     },
   });
 
   if (!client) notFound();
+
+  // Tâches taguées sur ce client (reverse-link de l'@mention de la to-do).
+  const taches = await prisma.tache.findMany({
+    where: { refType: "client", refId: id },
+    orderBy: [{ statut: "asc" }, { createdAt: "desc" }],
+  });
 
   return (
     <div className="space-y-6">
@@ -79,6 +102,11 @@ export default async function ClientDetailPage({
             }
           />
           <InteractionFormDialog clientId={client.id} />
+          <Button asChild variant="outline">
+            <Link href={`/clients/${client.id}/rapport?periode=${currentPeriode()}`}>
+              <FileText /> Rapport
+            </Link>
+          </Button>
           <ClientFormDialog
             client={client}
             trigger={
@@ -202,6 +230,84 @@ export default async function ClientDetailPage({
           </div>
         )}
       </div>
+
+      {client.devis.length > 0 ? (
+        <div>
+          <h2 className="mb-3 text-lg font-semibold">
+            Devis ({client.devis.length})
+          </h2>
+          <Card>
+            <ul className="divide-y">
+              {client.devis.map((d) => (
+                <li
+                  key={d.id}
+                  className="flex items-center justify-between gap-3 px-4 py-3"
+                >
+                  <div className="min-w-0">
+                    <Link
+                      href="/pipeline"
+                      className="text-sm font-medium hover:underline"
+                    >
+                      {d.libelle}
+                    </Link>
+                    <p className="font-mono text-xs tabular-nums text-muted-foreground">
+                      {euros(d.montantMensuelPropose)}/mois
+                      {d.montantCreation > 0
+                        ? ` · ${euros(d.montantCreation)} création`
+                        : ""}
+                      {d.dateRelance
+                        ? ` · relance ${dateFr(d.dateRelance)}`
+                        : ""}
+                    </p>
+                  </div>
+                  <DevisStatusBadge statut={d.statut} />
+                </li>
+              ))}
+            </ul>
+          </Card>
+        </div>
+      ) : null}
+
+      {taches.length > 0 ? (
+        <div>
+          <h2 className="mb-3 text-lg font-semibold">
+            Tâches taguées ({taches.length})
+          </h2>
+          <Card>
+            <ul className="divide-y">
+              {taches.map((t) => (
+                <li
+                  key={t.id}
+                  className="flex items-center justify-between gap-3 px-4 py-2.5"
+                >
+                  <span className="inline-flex min-w-0 items-center gap-2 text-sm">
+                    {t.statut === "fait" ? (
+                      <CheckCircle2 className="size-4 shrink-0 text-positive" />
+                    ) : (
+                      <Circle className="size-4 shrink-0 text-muted-foreground" />
+                    )}
+                    <span
+                      className={
+                        t.statut === "fait"
+                          ? "truncate text-muted-foreground line-through"
+                          : "truncate"
+                      }
+                    >
+                      {t.libelle}
+                    </span>
+                  </span>
+                  <Link
+                    href={t.semaine ? `/semaine?s=${t.semaine}` : "/semaine"}
+                    className="shrink-0 text-xs text-muted-foreground hover:underline"
+                  >
+                    {labelOf(TACHE_TYPES, t.type)} ›
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </Card>
+        </div>
+      ) : null}
 
       <div>
         <div className="mb-3 flex items-center justify-between">

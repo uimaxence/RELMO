@@ -185,3 +185,21 @@
     @apply font-sans;
   }
 }
+/* Impression (rapport client F7) : on masque le chrome de l'app. */
+@media print {
+  [data-slot="sidebar"],
+  [data-slot="sidebar-gap"],
+  [data-slot="sidebar-container"],
+  [data-slot="sidebar-rail"],
+  header {
+    display: none !important;
+  }
+  [data-slot="sidebar-inset"] {
+    margin: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+  }
+  .print-hide {
+    display: none !important;
+  }
+}

@@ -9,6 +9,7 @@ import {
   genererDevisBrouillon,
   genererRelanceNego,
   genererAccrochesProspection,
+  genererIntroRapport,
 } from "@/lib/ai/assistant";
 import type { AiResult } from "@/lib/ai/client";
 
@@ -30,4 +31,12 @@ export async function actionRelanceNego(devisId: string): Promise<AiResult> {
 
 export async function actionAccrochesProspection(): Promise<AiResult> {
   return genererAccrochesProspection();
+}
+
+export async function actionIntroRapport(
+  clientId: string,
+  periode: string,
+  livres: string[],
+): Promise<AiResult> {
+  return genererIntroRapport(clientId, periode, livres);
 }

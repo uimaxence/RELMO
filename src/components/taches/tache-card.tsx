@@ -41,9 +41,12 @@ export type TacheCardData = {
 export function TacheCard({
   tache,
   client,
+  handleProps,
 }: {
   tache: TacheCardData;
   client?: ClientRef | null;
+  // Écouteurs de drag (@dnd-kit) appliqués à la poignée uniquement.
+  handleProps?: Record<string, unknown>;
 }) {
   const [pending, startTransition] = useTransition();
   const [open, setOpen] = useState(false);
@@ -79,11 +82,6 @@ export function TacheCard({
   return (
     <>
       <div
-        draggable
-        onDragStart={(e) => {
-          e.dataTransfer.setData("text/plain", tache.id);
-          e.dataTransfer.effectAllowed = "move";
-        }}
         onClick={() => setOpen(true)}
         className={cn(
           "group cursor-pointer rounded-lg border bg-card p-2.5 shadow-xs transition-colors hover:border-foreground/30",
@@ -113,7 +111,14 @@ export function TacheCard({
           >
             {renderLibelle(tache.libelle, client)}
           </span>
-          <GripVertical className="size-4 shrink-0 text-muted-foreground/40 group-hover:text-muted-foreground" />
+          <span
+            {...(handleProps ?? {})}
+            onClick={(e) => e.stopPropagation()}
+            aria-label="Déplacer"
+            className="-m-1 shrink-0 cursor-grab touch-none p-1 active:cursor-grabbing"
+          >
+            <GripVertical className="size-4 text-muted-foreground/40 group-hover:text-muted-foreground" />
+          </span>
         </div>
         <div className="mt-1.5 flex items-center gap-2 pl-6 text-xs text-muted-foreground">
           {tache.priorite === "haute" ? (

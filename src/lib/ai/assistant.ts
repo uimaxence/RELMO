@@ -158,6 +158,34 @@ export async function genererRelanceNego(devisId: string): Promise<AiResult> {
   return chat({ provider: "deepseek", messages, temperature: 0.5 });
 }
 
+// --- Intro de rapport mensuel client (DeepSeek), à partir du livré du mois ---
+export async function genererIntroRapport(
+  clientId: string,
+  periode: string,
+  livres: string[],
+): Promise<AiResult> {
+  const c = await prisma.client.findUnique({ where: { id: clientId } });
+  if (!c) return { ok: false, error: "Client introuvable." };
+
+  const liste = livres.length
+    ? livres.map((l) => `- ${l}`).join("\n")
+    : "Aucun livrable marqué fait sur la période.";
+
+  const messages: AiMessage[] = [
+    { role: "system", content: VOIX },
+    {
+      role: "user",
+      content:
+        `Rédige un court paragraphe d'introduction (3–4 phrases) pour le rapport mensuel ` +
+        `destiné au client « ${c.nom} » (période ${periode}). Ton chaleureux et factuel, ` +
+        `à la 1re personne (mon agence/moi → "nous" ou "je"), qui valorise le travail réalisé ` +
+        `et rassure sur la valeur de l'abonnement. Appuie-toi sur ce qui a été livré :\n${liste}`,
+    },
+  ];
+
+  return chat({ provider: "deepseek", messages, temperature: 0.5, maxTokens: 400 });
+}
+
 // --- Extraction d'un devis depuis le texte d'un PDF (DeepSeek, mode JSON) ---
 export type DevisExtraction = {
   libelle?: string;
