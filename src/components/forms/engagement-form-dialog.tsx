@@ -128,7 +128,11 @@ export function EngagementFormDialog({
                 defaultValue={engagement?.quantiteParMois ?? 1}
               />
             </Field>
-            <Field label="Récurrence" error={state?.fieldErrors?.recurrence}>
+            <Field
+              label="Récurrence"
+              hint="Hebdomadaire : 1 livrable daté par semaine (la quantité/mois est ignorée)."
+              error={state?.fieldErrors?.recurrence}
+            >
               <Select
                 name="recurrence"
                 defaultValue={engagement?.recurrence ?? "mensuelle"}
