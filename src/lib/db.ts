@@ -1,17 +1,16 @@
-import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
+import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@/generated/prisma/client";
 
 // Singleton Prisma : évite d'épuiser les connexions en dev (hot reload).
 // Prisma 7 (générateur `prisma-client`) passe par un driver adapter.
-// DATABASE_URL (.env) est résolu relativement à la racine du projet, aussi bien
-// par la CLI Prisma que par le runtime Next — même fichier des deux côtés.
+// DB : Postgres (Neon). DATABASE_URL (.env) = connection string Neon poolée.
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };
 
 function createPrisma() {
-  const adapter = new PrismaBetterSqlite3({
-    url: process.env.DATABASE_URL ?? "file:./prisma/dev.db",
+  const adapter = new PrismaPg({
+    connectionString: process.env.DATABASE_URL,
   });
   return new PrismaClient({ adapter });
 }

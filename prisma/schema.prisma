@@ -7,7 +7,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
 }
 
 // Un client (la personne/entreprise pour qui on gère des sites).
@@ -21,12 +21,15 @@ model Client {
   sourceDetail String? // qui a recommandé / quelle campagne
   secteur      String? // secteur d'activité (niche)
   notes     String?
+  portailActif Boolean @default(false) // portail client (F15) activé ?
+  portailToken String? @unique // lien magique (non devinable)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   sites        Site[]
   devis        Devis[]
   interactions Interaction[]
+  photos       Photo[]
 }
 
 // Un site géré pour un client (1 client -> 0..n sites).
@@ -183,6 +186,29 @@ model MrrSnapshot {
   nbClients  Int      @default(0)
   nbContrats Int      @default(0)
   capturedAt DateTime @default(now())
+}
+
+// --- Phase 2 : portail client (F15) — dépôt photos par le client ---
+
+// Une photo déposée par le client dans son espace (stockage Vercel Blob ;
+// la base ne garde que les métadonnées). Triée en dossier par date (EXIF).
+model Photo {
+  id        String    @id @default(cuid())
+  clientId  String
+  dossier   String // "AAAA-MM" — tri par date de prise (EXIF) sinon upload
+  nom       String
+  url       String // URL publique Vercel Blob
+  pathname  String // chemin blob (pour suppression)
+  taille    Int // octets (pour le quota global 5 Go)
+  largeur   Int?
+  hauteur   Int?
+  prisLe    DateTime? // date EXIF si disponible
+  createdAt DateTime  @default(now())
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([clientId])
+  @@index([dossier])
 }
 
 // --- Bonus : wish-list / gamification (paliers de MRR) ---

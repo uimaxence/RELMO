@@ -18,6 +18,19 @@ export function dateFr(d: Date | string | null | undefined): string {
   });
 }
 
+// Taille de fichier lisible (1,2 Go…).
+export function octets(n: number): string {
+  if (n < 1024) return `${n} o`;
+  const unites = ["Ko", "Mo", "Go", "To"];
+  let v = n / 1024;
+  let i = 0;
+  while (v >= 1024 && i < unites.length - 1) {
+    v /= 1024;
+    i++;
+  }
+  return `${v.toFixed(v < 10 ? 1 : 0)} ${unites[i]}`;
+}
+
 // Pour les <input type="date"> (format AAAA-MM-JJ).
 export function toDateInput(d: Date | string | null | undefined): string {
   if (!d) return "";

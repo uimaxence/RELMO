@@ -20,6 +20,7 @@ import { SiteFormDialog } from "@/components/forms/site-form-dialog";
 import { InteractionFormDialog } from "@/components/forms/interaction-form-dialog";
 import { ConfirmDelete } from "@/components/forms/confirm-delete";
 import { AiGenerateDialog } from "@/components/ai/ai-generate-dialog";
+import { PortailControl } from "@/components/portail/portail-control";
 import {
   actionMessageProspection,
   actionDevisBrouillon,
@@ -57,6 +58,7 @@ export default async function ClientDetailPage({
       },
       devis: { orderBy: { updatedAt: "desc" } },
       interactions: { orderBy: { date: "desc" } },
+      _count: { select: { photos: true } },
     },
   });
 
@@ -155,6 +157,13 @@ export default async function ClientDetailPage({
           <p className="mt-3 whitespace-pre-wrap text-sm">{client.notes}</p>
         ) : null}
       </div>
+
+      <PortailControl
+        clientId={client.id}
+        actif={client.portailActif}
+        token={client.portailToken}
+        nbPhotos={client._count.photos}
+      />
 
       <div>
         <div className="mb-3 flex items-center justify-between">
