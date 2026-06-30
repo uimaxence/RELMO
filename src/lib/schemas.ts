@@ -94,6 +94,22 @@ export const interactionSchema = z.object({
   contenu: optionalString,
 });
 
+export const factureSchema = z.object({
+  clientId: z.string().min(1, requis),
+  siteId: z.preprocess(
+    (v) => (v === "" || v === "none" || v === null ? undefined : v),
+    z.string().optional(),
+  ),
+  numero: z.string().trim().min(1, requis),
+  periode: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, "Période AAAA-MM attendue."),
+  montant: montant("Montant invalide."),
+  statut: z.enum(["emise", "payee", "en_retard"]),
+  dateEmission: z.coerce.date({ message: "Date d'émission invalide." }),
+  dateEcheance: optionalDate,
+  pdfUrl: optionalString,
+  pathnamePdf: optionalString,
+});
+
 export const envieSchema = z.object({
   libelle: z.string().trim().min(1, requis),
   prix: montant("Prix invalide."),

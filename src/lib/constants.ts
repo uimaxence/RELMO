@@ -67,6 +67,13 @@ export const DIRECTIONS: Option[] = [
   { value: "entrant", label: "Entrant" },
 ];
 
+// Factures (portail client F15).
+export const FACTURE_STATUTS: Option[] = [
+  { value: "emise", label: "Émise" },
+  { value: "payee", label: "Payée" },
+  { value: "en_retard", label: "En retard" },
+];
+
 // To-do (Kanban hebdo).
 export const TACHE_TYPES: Option[] = [
   { value: "livrable", label: "Livrable" },

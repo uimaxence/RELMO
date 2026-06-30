@@ -21,6 +21,9 @@ import { InteractionFormDialog } from "@/components/forms/interaction-form-dialo
 import { ConfirmDelete } from "@/components/forms/confirm-delete";
 import { AiGenerateDialog } from "@/components/ai/ai-generate-dialog";
 import { PortailControl } from "@/components/portail/portail-control";
+import { FactureFormDialog } from "@/components/forms/facture-form-dialog";
+import { deleteFacture } from "@/app/actions/factures";
+import { Badge } from "@/components/ui/badge";
 import {
   actionMessageProspection,
   actionDevisBrouillon,
@@ -36,7 +39,7 @@ import {
   DevisStatusBadge,
 } from "@/components/status-badge";
 import { euros, dateFr } from "@/lib/format";
-import { labelOf, CANAUX, SOURCES, TACHE_TYPES } from "@/lib/constants";
+import { labelOf, CANAUX, SOURCES, TACHE_TYPES, FACTURE_STATUTS } from "@/lib/constants";
 import { currentPeriode } from "@/lib/periode";
 
 export const dynamic = "force-dynamic";
@@ -57,6 +60,7 @@ export default async function ClientDetailPage({
         include: { contrats: true },
       },
       devis: { orderBy: { updatedAt: "desc" } },
+      factures: { orderBy: { dateEmission: "desc" } },
       interactions: { orderBy: { date: "desc" } },
       _count: { select: { photos: true } },
     },
@@ -276,6 +280,84 @@ export default async function ClientDetailPage({
           </Card>
         </div>
       ) : null}
+
+      <div>
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-lg font-semibold">
+            Factures ({client.factures.length})
+          </h2>
+          <FactureFormDialog
+            clientId={client.id}
+            sites={client.sites.map((s) => ({ id: s.id, nom: s.nom }))}
+          />
+        </div>
+        {client.factures.length === 0 ? (
+          <Card>
+            <CardContent className="py-6 text-center text-sm text-muted-foreground">
+              Aucune facture. Visibles par le client dans son portail.
+            </CardContent>
+          </Card>
+        ) : (
+          <Card>
+            <ul className="divide-y">
+              {client.factures.map((f) => (
+                <li
+                  key={f.id}
+                  className="flex items-center justify-between gap-3 px-4 py-3"
+                >
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium">
+                      {f.numero}{" "}
+                      <span className="font-normal text-muted-foreground">
+                        · {f.periode}
+                      </span>
+                    </p>
+                    <p className="font-mono text-xs tabular-nums text-muted-foreground">
+                      {euros(f.montant)}
+                      {f.dateEcheance ? ` · échéance ${dateFr(f.dateEcheance)}` : ""}
+                      {f.pdfUrl ? (
+                        <>
+                          {" · "}
+                          <a
+                            href={f.pdfUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-brand hover:underline"
+                          >
+                            PDF
+                          </a>
+                        </>
+                      ) : ""}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-1">
+                    <Badge
+                      variant={f.statut === "payee" ? "secondary" : "outline"}
+                      className={f.statut === "en_retard" ? "text-negative" : ""}
+                    >
+                      {labelOf(FACTURE_STATUTS, f.statut)}
+                    </Badge>
+                    <FactureFormDialog
+                      clientId={client.id}
+                      sites={client.sites.map((s) => ({ id: s.id, nom: s.nom }))}
+                      facture={f}
+                      trigger={
+                        <Button variant="ghost" size="icon" aria-label="Modifier">
+                          <Pencil />
+                        </Button>
+                      }
+                    />
+                    <ConfirmDelete
+                      action={deleteFacture.bind(null, f.id, client.id)}
+                      description={`Supprimer la facture ${f.numero} ?`}
+                    />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </Card>
+        )}
+      </div>
 
       {taches.length > 0 ? (
         <div>
