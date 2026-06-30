@@ -2,7 +2,9 @@ import { prisma } from "@/lib/db";
 import { chat, type AiMessage, type AiResult } from "@/lib/ai/client";
 import { ensureObjectif, computeObjectif } from "@/lib/objectif";
 import { euros } from "@/lib/format";
-import { labelOf, SOURCES, CANAUX } from "@/lib/constants";
+import { labelOf, SOURCES, CANAUX, DEVIS_STATUTS } from "@/lib/constants";
+import { currentPeriode } from "@/lib/periode";
+import { currentWeek } from "@/lib/semaine";
 
 // Couche métier de l'assistant (cf. docs/IA.md §5). Chaque fonction charge le
 // contexte structuré depuis la DB, construit le prompt, et route vers le bon
@@ -184,6 +186,113 @@ export async function genererIntroRapport(
   ];
 
   return chat({ provider: "deepseek", messages, temperature: 0.5, maxTokens: 400 });
+}
+
+// --- Suggestions de tâches par l'IA, à partir de TOUT le profil (DeepSeek) ---
+export type TacheSuggeree = {
+  libelle: string;
+  categorie: string; // prospection | brand | perso | admin | technique | autre
+  priorite: string; // basse | normale | haute
+  pourquoi?: string;
+};
+
+export async function suggererTaches(): Promise<
+  { ok: true; taches: TacheSuggeree[] } | { ok: false; error: string }
+> {
+  const periode = currentPeriode();
+  const semaine = currentWeek();
+
+  const [objectif, mrrAgg, devisOuverts, devisDecided, prospects, livrablesRetard, dejaFait] =
+    await Promise.all([
+      ensureObjectif(),
+      prisma.contrat.aggregate({
+        _sum: { montantMensuel: true },
+        where: { statut: "actif", dateDebut: { lte: new Date() } },
+      }),
+      prisma.devis.findMany({
+        where: { statut: { in: ["brouillon", "envoye", "en_nego"] } },
+        include: { client: { select: { nom: true } } },
+        orderBy: { updatedAt: "desc" },
+        take: 12,
+      }),
+      prisma.devis.findMany({
+        where: { statut: { in: ["accepte", "refuse", "expire"] } },
+        select: { statut: true },
+      }),
+      prisma.client.count({ where: { statut: "prospect" } }),
+      prisma.livrable.count({ where: { periode, statut: "a_faire" } }),
+      prisma.tache.findMany({ where: { semaine }, select: { libelle: true } }),
+    ]);
+
+  const mrr = mrrAgg._sum.montantMensuel ?? 0;
+  const c = computeObjectif(objectif, mrr);
+  const gagnes = devisDecided.filter((d) => d.statut === "accepte").length;
+  const perdus = devisDecided.length - gagnes;
+  const tauxSignature =
+    gagnes + perdus > 0 ? Math.round((gagnes / (gagnes + perdus)) * 100) : null;
+
+  const pipeline = devisOuverts.length
+    ? devisOuverts
+        .map(
+          (d) =>
+            `- ${d.client.nom} · ${d.libelle} · ${euros(d.montantMensuelPropose)}/mois · ${labelOf(DEVIS_STATUTS, d.statut)}${d.dateRelance ? ` · relance ${d.dateRelance.toISOString().slice(0, 10)}` : ""}`,
+        )
+        .join("\n")
+    : "aucun devis ouvert";
+
+  const contexte = [
+    `MRR actuel : ${euros(mrr)} / cible ${euros(objectif.montantCible)} (${c.statutLabel}, ${c.moisRestants} mois restants).`,
+    `Rythme requis : +${Math.round(c.rythmeRequis)} €/mois.`,
+    `Prospects actifs : ${prospects}. Taux de signature : ${tauxSignature !== null ? tauxSignature + "%" : "n/d"} (${gagnes} gagnés, ${perdus} perdus).`,
+    `Livrables à faire ce mois : ${livrablesRetard}.`,
+    `Pipeline (devis ouverts) :\n${pipeline}`,
+    `Déjà dans ma to-do cette semaine :\n${dejaFait.map((t) => `- ${t.libelle}`).join("\n") || "(vide)"}`,
+  ].join("\n");
+
+  const messages: AiMessage[] = [
+    {
+      role: "system",
+      content:
+        VOIX +
+        " Tu es le coach business de ce freelance : tu transformes sa situation en actions concrètes du jour.",
+    },
+    {
+      role: "user",
+      content:
+        `À partir de mon profil ci-dessous, propose 4 à 6 tâches CONCRÈTES et actionnables pour cette semaine, ` +
+        `priorisées sur l'écart à mon objectif de MRR. Réponds UNIQUEMENT en JSON : ` +
+        `{"taches":[{"libelle":"...","categorie":"prospection|brand|perso|admin|technique|autre","priorite":"basse|normale|haute","pourquoi":"1 phrase"}]}. ` +
+        `Sois spécifique à MA situation (cite des montants, des noms de prospects/devis quand c'est pertinent). ` +
+        `Ne répète pas ce qui est déjà dans ma to-do. Varie les catégories (prospection, image de marque, perso, admin…).\n\n` +
+        `Mon profil :\n${contexte}`,
+    },
+  ];
+
+  const res = await chat({
+    provider: "deepseek",
+    jsonMode: true,
+    temperature: 0.6,
+    maxTokens: 900,
+    messages,
+  });
+  if (!res.ok) return res;
+
+  try {
+    const raw = JSON.parse(res.text);
+    const arr = Array.isArray(raw?.taches) ? raw.taches : [];
+    const taches: TacheSuggeree[] = arr
+      .filter((t: unknown): t is Record<string, unknown> => !!t && typeof t === "object")
+      .map((t: Record<string, unknown>) => ({
+        libelle: String(t.libelle ?? "").trim(),
+        categorie: String(t.categorie ?? "autre"),
+        priorite: String(t.priorite ?? "normale"),
+        pourquoi: t.pourquoi ? String(t.pourquoi) : undefined,
+      }))
+      .filter((t: TacheSuggeree) => t.libelle.length > 0);
+    return { ok: true, taches };
+  } catch {
+    return { ok: false, error: "Réponse IA illisible (JSON invalide)." };
+  }
 }
 
 // --- Extraction d'un devis depuis le texte d'un PDF (DeepSeek, mode JSON) ---

@@ -10,6 +10,7 @@ import {
   AddTacheForm,
 } from "@/components/taches/tache-toolbar";
 import { AiGenerateDialog } from "@/components/ai/ai-generate-dialog";
+import { SuggestionsIA } from "@/components/taches/suggestions-ia";
 import { actionAccrochesProspection } from "@/app/actions/ai";
 import {
   currentWeek,
@@ -74,6 +75,7 @@ export default async function SemainePage({
         title="To-do de la semaine"
         description="Ce qu'il faut livrer, relancer et avancer cette semaine. Glisse les cartes, clique pour éditer."
       >
+        <SuggestionsIA semaine={semaine} />
         <AiGenerateDialog
           action={actionAccrochesProspection}
           title="Accroches de prospection"

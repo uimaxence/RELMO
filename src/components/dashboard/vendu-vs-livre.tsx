@@ -1,12 +1,26 @@
 import Link from "next/link";
+import { ArrowRight } from "lucide-react";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { StatusBadge } from "@/components/status-badge";
 
-export type VenduItem = { label: string; vendu: number; livre: number };
+export type VenduItem = {
+  label: string;
+  site: string;
+  client: string;
+  siteId: string;
+  vendu: number;
+  livre: number;
+};
 
-// Signature §9 : densité par petits carrés (jamais de bloc plein).
-// Livré = encre (ambre si incomplet), reste vendu = fantôme.
+// Récap « ce qui est prévu au contrat ce mois » vs « ce qui est déjà livré »,
+// par engagement. Source des livrables qui alimentent la to-do de la semaine.
 export function VenduVsLivre({
   items,
   periode,
@@ -15,17 +29,24 @@ export function VenduVsLivre({
   periode: string;
 }) {
   const incomplets = items.filter((i) => i.livre < i.vendu).length;
-  const maxV = Math.max(1, ...items.map((i) => i.vendu));
-  const rows = Math.min(8, maxV);
+  // Les plus en retard d'abord, terminés en bas.
+  const sorted = [...items].sort(
+    (a, b) => b.vendu - b.livre - (a.vendu - a.livre),
+  );
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0">
-        <CardTitle className="text-base">Vendu vs livré · {periode}</CardTitle>
+      <CardHeader className="flex flex-row items-start justify-between space-y-0">
+        <div>
+          <CardTitle className="text-base">Livrables du mois · {periode}</CardTitle>
+          <CardDescription>
+            Prévu au contrat vs déjà livré, par prestation.
+          </CardDescription>
+        </div>
         {items.length > 0 ? (
           incomplets > 0 ? (
             <StatusBadge variant="warn">
-              {incomplets} incomplet{incomplets > 1 ? "s" : ""}
+              {incomplets} à finir
             </StatusBadge>
           ) : (
             <StatusBadge variant="ok">À jour</StatusBadge>
@@ -38,53 +59,79 @@ export function VenduVsLivre({
             <p className="text-sm text-muted-foreground">
               Aucun livrable généré ce mois.
             </p>
-            <Link
-              href="/livrables"
-              className="text-sm text-brand hover:underline"
-            >
+            <Link href="/livrables" className="text-sm text-brand hover:underline">
               Générer les livrables →
             </Link>
           </div>
         ) : (
-          <div className="flex items-end justify-around gap-3 pt-2">
-            {items.map((it, idx) => {
-              const vR = Math.max(1, Math.round((it.vendu / maxV) * rows));
-              const dR = Math.round((it.livre / maxV) * rows);
-              const behind = it.livre < it.vendu;
-              return (
-                <div
-                  key={idx}
-                  className="flex flex-1 flex-col items-center gap-2"
-                >
-                  <div className="flex w-full max-w-[26px] flex-col-reverse gap-[3px]">
-                    {Array.from({ length: rows }).map((_, r) => (
-                      <span
-                        key={r}
-                        className={`aspect-square w-full rounded-[3px] ${
-                          r < dR
-                            ? behind
-                              ? "bg-warning"
-                              : "bg-foreground"
-                            : r < vR
-                              ? "bg-muted"
-                              : "bg-transparent"
-                        }`}
-                      />
-                    ))}
-                  </div>
-                  <div
-                    className="max-w-[80px] truncate text-center text-[11px] text-muted-foreground"
-                    title={it.label}
+          <>
+            <ul className="divide-y">
+              {sorted.map((it, idx) => {
+                const reste = it.vendu - it.livre;
+                const done = reste <= 0;
+                const shown = Math.min(it.vendu, 12);
+                const filled =
+                  it.vendu <= 12
+                    ? it.livre
+                    : Math.round((it.livre / it.vendu) * 12);
+                return (
+                  <li
+                    key={idx}
+                    className="flex items-center justify-between gap-3 py-2.5"
                   >
-                    {it.label}{" "}
-                    <span className="font-mono tabular-nums text-foreground">
-                      {it.livre}/{it.vendu}
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+                    <div className="min-w-0">
+                      <Link
+                        href={`/sites/${it.siteId}`}
+                        className="truncate text-sm font-medium hover:underline"
+                      >
+                        {it.label}
+                      </Link>
+                      <p className="truncate text-xs text-muted-foreground">
+                        {it.client} · {it.site}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-3">
+                      <div className="flex gap-[3px]" aria-hidden>
+                        {Array.from({ length: shown }).map((_, r) => (
+                          <span
+                            key={r}
+                            className={`size-2.5 rounded-[3px] ${
+                              r < filled
+                                ? done
+                                  ? "bg-foreground"
+                                  : "bg-warning"
+                                : "bg-muted"
+                            }`}
+                          />
+                        ))}
+                      </div>
+                      <span className="w-10 text-right font-mono text-xs tabular-nums">
+                        <span className={done ? "text-foreground" : "text-warning-ink"}>
+                          {it.livre}
+                        </span>
+                        <span className="text-muted-foreground">/{it.vendu}</span>
+                      </span>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+
+            <div className="mt-3 flex items-center justify-between border-t pt-3 text-sm">
+              <Link
+                href="/livrables"
+                className="inline-flex items-center gap-1 text-brand hover:underline"
+              >
+                Gérer les livrables <ArrowRight className="size-3.5" />
+              </Link>
+              <Link
+                href="/semaine"
+                className="text-muted-foreground hover:underline"
+              >
+                À faire cette semaine →
+              </Link>
+            </div>
+          </>
         )}
       </CardContent>
     </Card>

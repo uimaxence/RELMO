@@ -13,7 +13,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { ObjectifMrr } from "@/components/objectif-mrr";
 import { KpiCard } from "@/components/dashboard/kpi-card";
-import { VenduVsLivre } from "@/components/dashboard/vendu-vs-livre";
+import { VenduVsLivre, type VenduItem } from "@/components/dashboard/vendu-vs-livre";
 import { AiBanner } from "@/components/dashboard/ai-banner";
 import { MrrEvolutionChart } from "@/components/dashboard/mrr-evolution";
 import { euros, dateFr } from "@/lib/format";
@@ -53,7 +53,13 @@ export default async function DashboardPage() {
         where: { periode },
         include: {
           engagement: {
-            include: { contrat: { include: { site: true } } },
+            include: {
+              contrat: {
+                include: {
+                  site: { include: { client: { select: { nom: true } } } },
+                },
+              },
+            },
           },
         },
       }),
@@ -111,11 +117,19 @@ export default async function DashboardPage() {
   const enRetard = sitesLivrables.filter((s) => s.faits < s.total);
 
   // Vendu vs livré : par engagement (vendu = livrables prévus, livré = faits).
-  const parEng = new Map<string, { label: string; vendu: number; livre: number }>();
+  const parEng = new Map<string, VenduItem>();
   for (const l of livrables) {
+    const site = l.engagement.contrat.site;
     const g =
       parEng.get(l.engagement.id) ??
-      { label: l.engagement.libelle, vendu: 0, livre: 0 };
+      {
+        label: l.engagement.libelle,
+        site: site.nom,
+        client: site.client.nom,
+        siteId: site.id,
+        vendu: 0,
+        livre: 0,
+      };
     g.vendu++;
     if (l.statut === "fait") g.livre++;
     parEng.set(l.engagement.id, g);

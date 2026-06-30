@@ -10,6 +10,16 @@ const STATUTS = ["a_faire", "en_cours", "fait", "reporte"] as const;
 type Statut = (typeof STATUTS)[number];
 
 const PRIORITES = ["basse", "normale", "haute"] as const;
+const TYPES = [
+  "livrable",
+  "relance_devis",
+  "prospection",
+  "brand",
+  "perso",
+  "admin",
+  "technique",
+  "autre",
+] as const;
 
 function revalidateTaches() {
   revalidatePath("/semaine");
@@ -93,6 +103,31 @@ export async function updateTache(
   if (Object.keys(patch).length === 0) return;
 
   await prisma.tache.update({ where: { id }, data: patch });
+  revalidateTaches();
+}
+
+// Ajoute une tâche proposée par l'IA (avec sa catégorie/priorité).
+export async function ajouterTacheSuggeree(
+  semaine: string,
+  libelle: string,
+  type: string,
+  priorite: string,
+): Promise<void> {
+  if (!isWeekKey(semaine) || !libelle.trim()) return;
+  const t = (TYPES as readonly string[]).includes(type) ? type : "autre";
+  const p = (PRIORITES as readonly string[]).includes(priorite)
+    ? priorite
+    : "normale";
+  await prisma.tache.create({
+    data: {
+      date: dayKey(),
+      semaine,
+      libelle: libelle.trim(),
+      type: t,
+      priorite: p,
+      genereAuto: true,
+    },
+  });
   revalidateTaches();
 }
 

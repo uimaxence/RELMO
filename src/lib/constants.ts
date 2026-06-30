@@ -79,9 +79,22 @@ export const TACHE_TYPES: Option[] = [
   { value: "livrable", label: "Livrable" },
   { value: "relance_devis", label: "Relance devis" },
   { value: "prospection", label: "Prospection" },
+  { value: "brand", label: "Brand" },
+  { value: "perso", label: "Perso" },
+  { value: "admin", label: "Admin" },
   { value: "technique", label: "Technique" },
   { value: "autre", label: "Autre" },
 ];
+
+// Catégories que l'IA peut attribuer à une tâche suggérée (cf. assistant).
+export const TACHE_CATEGORIES_IA = [
+  "prospection",
+  "brand",
+  "perso",
+  "admin",
+  "technique",
+  "autre",
+] as const;
 
 export const TACHE_PRIORITES: Option[] = [
   { value: "basse", label: "Basse" },

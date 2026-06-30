@@ -21,13 +21,15 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { euros, dateFr } from "@/lib/format";
 import { labelOf, SOURCES } from "@/lib/constants";
+import { ObjectifMrr } from "@/components/objectif-mrr";
+import { ensureObjectif } from "@/lib/objectif";
 
 export const dynamic = "force-dynamic";
 
 export default async function MrrPage() {
   const now = new Date();
 
-  const [clients, devisAll] = await Promise.all([
+  const [clients, devisAll, objectif, potentielAgg] = await Promise.all([
     prisma.client.findMany({
       orderBy: { nom: "asc" },
       include: { sites: { include: { contrats: true } } },
@@ -35,7 +37,13 @@ export default async function MrrPage() {
     prisma.devis.findMany({
       select: { statut: true, client: { select: { source: true } } },
     }),
+    ensureObjectif(),
+    prisma.devis.aggregate({
+      _sum: { montantMensuelPropose: true },
+      where: { statut: "en_nego" },
+    }),
   ]);
+  const potentiel = potentielAgg._sum.montantMensuelPropose ?? 0;
 
   const rows = clients.map((c) => {
     const contrats = c.sites.flatMap((s) => s.contrats);
@@ -160,6 +168,8 @@ export default async function MrrPage() {
           </Card>
         ))}
       </div>
+
+      <ObjectifMrr objectif={objectif} current={mrrFacture} potentiel={potentiel} />
 
       <Card>
         <CardHeader>
