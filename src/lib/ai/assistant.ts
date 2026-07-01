@@ -392,14 +392,24 @@ export async function auditerProspect(input: {
   activite?: string | null;
   statutSite: string;
   signaux: unknown;
+  stylesUtilisateur?: string[]; // messages déjà envoyés par l'user → imiter son style
 }): Promise<{ ok: true; data: ProspectAudit } | { ok: false; error: string }> {
+  // Si l'utilisateur a déjà envoyé des messages, on les donne en exemples de
+  // style pour que les accroches sonnent comme lui (cf. apprentissage du ton).
+  const styleBloc =
+    input.stylesUtilisateur && input.stylesUtilisateur.length
+      ? "\n\nVoici des messages que l'utilisateur a RÉELLEMENT envoyés — imite son ton, " +
+        "son vocabulaire et sa longueur, sans recopier :\n" +
+        input.stylesUtilisateur.map((m, i) => `Exemple ${i + 1} : « ${m} »`).join("\n")
+      : "";
+
   const res = await chat({
     provider: "deepseek",
     jsonMode: true,
     temperature: 0.5,
     maxTokens: 700,
     messages: [
-      { role: "system", content: SYS_AUDIT },
+      { role: "system", content: SYS_AUDIT + styleBloc },
       {
         role: "user",
         content:

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowLeft, Users, Flame, Sparkles, Target } from "lucide-react";
+import { ArrowLeft, Users, Send, BellRing, Target } from "lucide-react";
 
 import { prisma } from "@/lib/db";
 import { PageHeader } from "@/components/page-header";
@@ -7,6 +7,7 @@ import { KpiCard } from "@/components/dashboard/kpi-card";
 import { RechercheToolbar } from "@/components/prospection/recherche-toolbar";
 import { ProspectTable, type ProspectRow } from "@/components/prospection/prospect-table";
 import { placesConfigured } from "@/app/actions/prospection";
+import { dateFr } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 // Collecte + audit DeepSeek de 15 prospects peut durer ~40 s : on relève le
@@ -16,7 +17,8 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 export default async function RechercheProspectsPage() {
-  const [prospects, nbAAuditer, nbChauds, nbScore] = await Promise.all([
+  const now = new Date();
+  const [prospects, nbAAuditer, nbContactes, nbScore] = await Promise.all([
     prisma.prospect.findMany({
       orderBy: [{ statut: "asc" }, { score: "desc" }, { createdAt: "desc" }],
       take: 300,
@@ -24,13 +26,20 @@ export default async function RechercheProspectsPage() {
     prisma.prospect.count({
       where: { statutAudit: "a_auditer", statut: { not: "ecarte" } },
     }),
-    prisma.prospect.count({ where: { site: null, statut: { not: "ecarte" } } }),
-    prisma.prospect.count({ where: { score: { gte: 65 }, statut: { not: "ecarte" } } }),
+    prisma.prospect.count({ where: { statut: "contacte" } }),
+    prisma.prospect.count({ where: { score: { gte: 65 }, statut: { notIn: ["ecarte", "converti"] } } }),
   ]);
 
-  // Tri final : écartés en bas, puis meilleur score, puis récents (nulls après).
+  const relanceDue = (p: (typeof prospects)[number]) =>
+    p.statut === "contacte" && !!p.relanceLe && p.relanceLe <= now;
+
+  const nbRelancesDues = prospects.filter(relanceDue).length;
+
+  // Tri : relances dues en tête, puis écartés en bas, puis meilleur score.
   const rows: ProspectRow[] = [...prospects]
     .sort((a, b) => {
+      const rd = Number(relanceDue(b)) - Number(relanceDue(a));
+      if (rd !== 0) return rd;
       const ec = Number(a.statut === "ecarte") - Number(b.statut === "ecarte");
       if (ec !== 0) return ec;
       return (b.score ?? -1) - (a.score ?? -1);
@@ -54,13 +63,23 @@ export default async function RechercheProspectsPage() {
       linkedin: p.linkedin,
       note: p.note,
       statut: p.statut,
+      messageEnvoye: p.messageEnvoye,
+      contacteLeFr: p.contacteLe ? dateFr(p.contacteLe) : null,
+      relanceLeFr: p.relanceLe ? dateFr(p.relanceLe) : null,
+      relanceDue: relanceDue(p),
+      nbRelances: p.nbRelances,
     }));
 
   const kpis = [
     { label: "Prospects", value: prospects.length, icon: Users, hint: "En base" },
     { label: "Score ≥ 65", value: nbScore, icon: Target, hint: "À attaquer en priorité" },
-    { label: "Sans site", value: nbChauds, icon: Flame, hint: "Site à créer de zéro" },
-    { label: "À auditer", value: nbAAuditer, icon: Sparkles, hint: "Pas encore analysés" },
+    { label: "Contactés", value: nbContactes, icon: Send, hint: "Dans le pipeline" },
+    {
+      label: "Relances dues",
+      value: nbRelancesDues,
+      icon: BellRing,
+      hint: "À relancer aujourd'hui",
+    },
   ];
 
   return (

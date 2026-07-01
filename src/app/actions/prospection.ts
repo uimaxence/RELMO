@@ -9,6 +9,19 @@ import { analyzeSite } from "@/lib/prospection/audit";
 import { auditerProspect, enrichirDirigeant } from "@/lib/ai/assistant";
 import { REGIONS, REGION_DEFAUT } from "@/lib/prospection/regions";
 import { secteurByCle } from "@/lib/prospection/secteurs";
+import { PROSPECT_RELANCE_JOURS } from "@/lib/constants";
+
+// Récupère quelques messages réellement envoyés par l'utilisateur → sert
+// d'exemples de style pour que DeepSeek imite sa façon d'écrire.
+async function stylesUtilisateur(): Promise<string[]> {
+  const rows = await prisma.prospect.findMany({
+    where: { messageEnvoye: { not: null } },
+    orderBy: { contacteLe: "desc" },
+    take: 3,
+    select: { messageEnvoye: true },
+  });
+  return rows.map((r) => r.messageEnvoye!).filter(Boolean);
+}
 
 // Frontière "use server" du moteur de prospection. Toutes les écritures passent
 // par Prisma + revalidatePath("/prospection/recherche"). Dédup : domaine (site)
@@ -213,6 +226,7 @@ export async function auditerUnProspect(
     activite: p.activite,
     statutSite: statut,
     signaux: signals,
+    stylesUtilisateur: await stylesUtilisateur(),
   });
   if (!ia.ok) {
     // On garde l'erreur exacte (clé absente, 401, timeout…) pour la débuggabilité.
@@ -338,6 +352,61 @@ export async function changerStatutProspect(
   statut: string,
 ): Promise<void> {
   await prisma.prospect.update({ where: { id }, data: { statut } });
+  revalidatePath(PAGE);
+}
+
+// « Mail envoyé » : entre dans le pipeline. Enregistre le message RÉELLEMENT
+// envoyé (édité par l'user, défaut = accroche) → DeepSeek apprend son style.
+// Planifie une relance à +5 jours.
+export async function marquerContacte(
+  id: string,
+  message?: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const now = new Date();
+  const relance = new Date(now.getTime() + PROSPECT_RELANCE_JOURS * 86_400_000);
+  await prisma.prospect.update({
+    where: { id },
+    data: {
+      statut: "contacte",
+      contacteLe: now,
+      relanceLe: relance,
+      relanceFaiteLe: null,
+      messageEnvoye: message?.trim() ? message.trim() : undefined,
+    },
+  });
+  revalidatePath(PAGE);
+  return { ok: true };
+}
+
+// « Relance faite » : reconduit la relance à +5 jours et incrémente le compteur.
+export async function marquerRelanceFaite(id: string): Promise<void> {
+  const now = new Date();
+  const relance = new Date(now.getTime() + PROSPECT_RELANCE_JOURS * 86_400_000);
+  const p = await prisma.prospect.findUnique({
+    where: { id },
+    select: { nbRelances: true },
+  });
+  await prisma.prospect.update({
+    where: { id },
+    data: {
+      relanceFaiteLe: now,
+      relanceLe: relance,
+      nbRelances: (p?.nbRelances ?? 0) + 1,
+    },
+  });
+  revalidatePath(PAGE);
+}
+
+// « Annuler la fiche » : suppression définitive. La raison (facultative) n'est pas
+// conservée en base (la fiche disparaît) mais est tracée dans les logs serveur.
+export async function annulerProspect(id: string, raison?: string): Promise<void> {
+  const p = await prisma.prospect.delete({
+    where: { id },
+    select: { nom: true },
+  });
+  if (raison?.trim()) {
+    console.info(`[prospect annulé] ${p.nom} (${id}) — ${raison.trim()}`);
+  }
   revalidatePath(PAGE);
 }
 

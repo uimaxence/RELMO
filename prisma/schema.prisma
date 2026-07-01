@@ -301,12 +301,17 @@ model Prospect {
   accrocheEmail    String?
   accrocheLinkedin String?
 
-  // Suivi commercial
-  statut    String   @default("nouveau") // nouveau | a_contacter | ecarte | converti
-  clientId  String? // Client créé à la conversion (lien souple, pas de FK)
-  note      String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  // Suivi commercial / pipeline de prospection
+  statut         String    @default("nouveau") // nouveau | a_contacter | contacte | ecarte | converti
+  messageEnvoye  String? // le message réellement envoyé (édité par l'user) → apprend son style
+  contacteLe     DateTime? // 1er message envoyé (mail/LinkedIn)
+  relanceLe      DateTime? // prochaine relance prévue (contacteLe + 5 j, puis reconduite)
+  relanceFaiteLe DateTime? // dernière relance effectuée
+  nbRelances     Int       @default(0)
+  clientId       String? // Client créé à la conversion (lien souple, pas de FK)
+  note           String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   @@index([secteur])
   @@index([statut])

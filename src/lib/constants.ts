@@ -115,9 +115,13 @@ export const ENVIE_CATEGORIES: Option[] = [
 export const PROSPECT_STATUTS: Option[] = [
   { value: "nouveau", label: "Nouveau" },
   { value: "a_contacter", label: "À contacter" },
+  { value: "contacte", label: "Contacté" },
   { value: "ecarte", label: "Écarté" },
   { value: "converti", label: "Converti" },
 ];
+
+// Délai par défaut avant relance d'un prospect contacté (jours).
+export const PROSPECT_RELANCE_JOURS = 5;
 
 export function labelOf(options: Option[], value: string): string {
   return options.find((o) => o.value === value)?.label ?? value;
