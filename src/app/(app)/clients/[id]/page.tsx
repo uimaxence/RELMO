@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import {
   ChevronRight,
   Pencil,
+  Plus,
   Globe,
   Mail,
   Phone,
@@ -17,6 +18,7 @@ import { prisma } from "@/lib/db";
 import { PageHeader } from "@/components/page-header";
 import { ClientFormDialog } from "@/components/forms/client-form-dialog";
 import { SiteFormDialog } from "@/components/forms/site-form-dialog";
+import { ContratFormDialog } from "@/components/forms/contrat-form-dialog";
 import { InteractionFormDialog } from "@/components/forms/interaction-form-dialog";
 import { ConfirmDelete } from "@/components/forms/confirm-delete";
 import { AiGenerateDialog } from "@/components/ai/ai-generate-dialog";
@@ -37,7 +39,9 @@ import {
   SiteStatusBadge,
   ClientStatusBadge,
   DevisStatusBadge,
+  ContratStatusBadge,
 } from "@/components/status-badge";
+import { deleteContrat } from "@/app/actions/contrats";
 import { euros, dateFr } from "@/lib/format";
 import { labelOf, CANAUX, SOURCES, TACHE_TYPES, FACTURE_STATUTS } from "@/lib/constants";
 import { currentPeriode } from "@/lib/periode";
@@ -216,26 +220,97 @@ export default async function ClientDetailPage({
                     </div>
                     <SiteStatusBadge statut={site.statut} />
                   </CardHeader>
-                  <CardContent className="flex items-center justify-between">
-                    <div className="text-sm text-muted-foreground">
-                      {site.contrats.length} contrat
-                      {site.contrats.length > 1 ? "s" : ""} · {euros(mrr)}/mois
+                  <CardContent className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="text-sm">
+                        <span className="font-medium">{euros(mrr)}/mois</span>
+                        <span className="text-muted-foreground">
+                          {" "}
+                          · {site.contrats.length} contrat
+                          {site.contrats.length > 1 ? "s" : ""}
+                        </span>
+                      </div>
+                      <div className="flex gap-1">
+                        <SiteFormDialog
+                          clientId={client.id}
+                          site={site}
+                          trigger={
+                            <Button variant="ghost" size="icon" aria-label="Modifier le site">
+                              <Pencil />
+                            </Button>
+                          }
+                        />
+                        <ConfirmDelete
+                          action={deleteSite.bind(null, site.id, client.id)}
+                          description={`Supprimer le site « ${site.nom} » et ses contrats ?`}
+                        />
+                      </div>
                     </div>
-                    <div className="flex gap-1">
-                      <SiteFormDialog
-                        clientId={client.id}
-                        site={site}
-                        trigger={
-                          <Button variant="ghost" size="icon" aria-label="Modifier">
-                            <Pencil />
-                          </Button>
-                        }
-                      />
-                      <ConfirmDelete
-                        action={deleteSite.bind(null, site.id, client.id)}
-                        description={`Supprimer le site « ${site.nom} » et ses contrats ?`}
-                      />
-                    </div>
+
+                    {site.contrats.length === 0 ? (
+                      <div className="flex items-center justify-between gap-2 rounded-md border border-dashed px-3 py-2">
+                        <span className="text-sm text-muted-foreground">
+                          Aucun contrat — MRR à définir
+                        </span>
+                        <ContratFormDialog
+                          siteId={site.id}
+                          trigger={
+                            <Button size="sm">
+                              <Plus /> Contrat
+                            </Button>
+                          }
+                        />
+                      </div>
+                    ) : (
+                      <ul className="divide-y rounded-md border">
+                        {site.contrats.map((ct) => (
+                          <li
+                            key={ct.id}
+                            className="flex items-center justify-between gap-2 px-3 py-2"
+                          >
+                            <div className="min-w-0">
+                              <p className="truncate text-sm">{ct.libelle}</p>
+                              <p className="font-mono text-xs tabular-nums text-muted-foreground">
+                                {euros(ct.montantMensuel)}/mois
+                                {!ct.facturationDemarree
+                                  ? " · en attente de facturation"
+                                  : ""}
+                              </p>
+                            </div>
+                            <div className="flex shrink-0 items-center gap-1">
+                              <ContratStatusBadge statut={ct.statut} />
+                              <ContratFormDialog
+                                siteId={site.id}
+                                contrat={ct}
+                                trigger={
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    aria-label="Modifier le contrat"
+                                  >
+                                    <Pencil />
+                                  </Button>
+                                }
+                              />
+                              <ConfirmDelete
+                                action={deleteContrat.bind(null, ct.id, site.id)}
+                                description={`Supprimer le contrat « ${ct.libelle} » et ses engagements ?`}
+                              />
+                            </div>
+                          </li>
+                        ))}
+                        <li className="px-3 py-1.5">
+                          <ContratFormDialog
+                            siteId={site.id}
+                            trigger={
+                              <Button variant="ghost" size="sm">
+                                <Plus /> Ajouter un contrat
+                              </Button>
+                            }
+                          />
+                        </li>
+                      </ul>
+                    )}
                   </CardContent>
                 </Card>
               );

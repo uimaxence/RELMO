@@ -14,8 +14,12 @@ export async function createContrat(
   if (!parsed.ok) return parsed.state;
   const data = parsed.data;
 
-  await prisma.contrat.create({ data });
+  const contrat = await prisma.contrat.create({
+    data,
+    include: { site: { select: { clientId: true } } },
+  });
   revalidatePath(`/sites/${data.siteId}`);
+  revalidatePath(`/clients/${contrat.site.clientId}`);
   revalidatePath("/");
   return { ok: true, message: "Contrat créé." };
 }
@@ -29,8 +33,13 @@ export async function updateContrat(
   if (!parsed.ok) return parsed.state;
   const data = parsed.data;
 
-  await prisma.contrat.update({ where: { id }, data });
+  const contrat = await prisma.contrat.update({
+    where: { id },
+    data,
+    include: { site: { select: { clientId: true } } },
+  });
   revalidatePath(`/sites/${data.siteId}`);
+  revalidatePath(`/clients/${contrat.site.clientId}`);
   revalidatePath("/");
   return { ok: true, message: "Contrat mis à jour." };
 }
@@ -53,7 +62,11 @@ export async function marquerFacturationDemarree(
 }
 
 export async function deleteContrat(id: string, siteId: string): Promise<void> {
-  await prisma.contrat.delete({ where: { id } });
+  const contrat = await prisma.contrat.delete({
+    where: { id },
+    include: { site: { select: { clientId: true } } },
+  });
   revalidatePath(`/sites/${siteId}`);
+  revalidatePath(`/clients/${contrat.site.clientId}`);
   revalidatePath("/");
 }
