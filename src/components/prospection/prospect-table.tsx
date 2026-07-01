@@ -308,7 +308,7 @@ function ProspectSheet({
 
   return (
     <Sheet open={!!p} onOpenChange={(o) => !o && onClose()}>
-      <SheetContent className="w-full gap-0 overflow-y-auto p-0 sm:max-w-md">
+      <SheetContent className="gap-0 overflow-y-auto p-0 !w-[92vw] !max-w-none sm:!w-[52vw]">
         {p ? (
           <>
             <SheetHeader className="border-b p-5">

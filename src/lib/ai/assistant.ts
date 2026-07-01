@@ -384,6 +384,14 @@ const SYS_AUDIT =
   "- Accroches COURTES (2-4 phrases), centrées sur 1-2 problèmes concrets repérés + le bénéfice. Pas de jargon.\n" +
   "- Termine par une question légère ou une proposition simple (audit offert, échange de 15 min).\n" +
   "- Si pas de site : angle « vous n'apparaissez pas en ligne / pas de site = clients perdus ».\n" +
+  "- ANGLE PRIORITAIRE = modernisation / design daté. Tu ne vois PAS de capture d'écran : " +
+  "déduis l'obsolescence des signaux et NOMME-la explicitement dans l'accroche quand ils l'indiquent :\n" +
+  "  · `derniereAnneeVisible` ancienne (≤ année en cours - 2) → « votre site date visiblement de {année}, il a besoin d'un coup de neuf ».\n" +
+  "  · `viewport` absent → le site n'est PAS adapté au mobile (argument fort : la majorité des visiteurs sont sur téléphone).\n" +
+  "  · `jquery` présent ou `generator` daté (vieux WordPress/Wix, etc.) → techno vieillissante, design et performance à la traîne.\n" +
+  "  · beaucoup d'`imgSansAlt`, `poidsHtmlKo` élevé, pas de `structuredData`/`ogTags` → SEO et image de marque en souffrance.\n" +
+  "  Quand plusieurs de ces signaux sont présents, l'accroche DOIT mener avec « site daté / à moderniser côté design et mobile », " +
+  "c'est l'argument n°1. Reste honnête : parle des signaux, ne prétends pas avoir vu le rendu visuel.\n" +
   'Schéma : {"score":<0-100>,"design":"<1 phrase>","anciennete":"<1 phrase>","points_faibles":["..."],"accroche_email":"...","accroche_linkedin":"..."}';
 
 export async function auditerProspect(input: {
