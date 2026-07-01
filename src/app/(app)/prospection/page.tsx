@@ -46,8 +46,17 @@ export default async function ProspectionPage() {
     59,
   );
 
-  const [prospects, relances, potentielAgg, objectif, mrrAgg, clients, sites] =
-    await Promise.all([
+  const [
+    prospects,
+    relances,
+    potentielAgg,
+    objectif,
+    mrrAgg,
+    clients,
+    sites,
+    prospectsDecouverts,
+    prospectsChauds,
+  ] = await Promise.all([
       prisma.client.findMany({
         where: { statut: "prospect" },
         include: {
@@ -79,6 +88,11 @@ export default async function ProspectionPage() {
       prisma.site.findMany({
         orderBy: { nom: "asc" },
         select: { id: true, nom: true, client: { select: { nom: true } } },
+      }),
+      // Prospects découverts (moteur de recherche) non encore convertis/écartés.
+      prisma.prospect.count({ where: { statut: { in: ["nouveau", "a_contacter"] } } }),
+      prisma.prospect.count({
+        where: { statut: { in: ["nouveau", "a_contacter"] }, score: { gte: 65 } },
       }),
     ]);
 
@@ -132,10 +146,36 @@ export default async function ProspectionPage() {
         <Button asChild variant="outline">
           <Link href="/prospection/recherche">
             <Search /> Recherche de prospects
+            {prospectsDecouverts > 0 ? (
+              <Badge variant="secondary" className="ml-1 font-mono tabular-nums">
+                {prospectsDecouverts}
+              </Badge>
+            ) : null}
           </Link>
         </Button>
         <DevisFormDialog clients={clients} sites={siteOpts} />
       </PageHeader>
+
+      {/* Bandeau : les prospects découverts vivent sur /prospection/recherche.
+          On les rappelle ici pour ne jamais les « perdre » en navigant. */}
+      {prospectsDecouverts > 0 ? (
+        <Link
+          href="/prospection/recherche"
+          className="flex flex-wrap items-center gap-3 rounded-xl border bg-card px-4 py-3 transition-colors hover:bg-muted/50"
+        >
+          <Search className="size-4 shrink-0 text-brand" />
+          <span className="min-w-0 flex-1 text-sm">
+            <span className="font-medium">{prospectsDecouverts} prospect{prospectsDecouverts > 1 ? "s" : ""} découvert{prospectsDecouverts > 1 ? "s" : ""}</span>
+            {prospectsChauds > 0 ? (
+              <span className="text-muted-foreground">
+                {" "}· {prospectsChauds} à fort potentiel (score ≥ 65)
+              </span>
+            ) : null}
+            <span className="text-muted-foreground"> — messages prêts à copier.</span>
+          </span>
+          <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
+        </Link>
+      ) : null}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {kpis.map((k) => (

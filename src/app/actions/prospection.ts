@@ -215,7 +215,11 @@ export async function auditerUnProspect(
     signaux: signals,
   });
   if (!ia.ok) {
-    await prisma.prospect.update({ where: { id }, data: { statutAudit: "erreur" } });
+    // On garde l'erreur exacte (clé absente, 401, timeout…) pour la débuggabilité.
+    await prisma.prospect.update({
+      where: { id },
+      data: { statutAudit: "erreur", note: ia.error?.slice(0, 300) ?? null },
+    });
     return { ok: false, error: ia.error };
   }
 

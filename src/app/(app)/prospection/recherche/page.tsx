@@ -52,6 +52,7 @@ export default async function RechercheProspectsPage() {
       accrocheLinkedin: p.accrocheLinkedin,
       dirigeant: p.dirigeant,
       linkedin: p.linkedin,
+      note: p.note,
       statut: p.statut,
     }));
 
