@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
@@ -46,6 +47,7 @@ export function RechercheToolbar({
   const [secteur, setSecteur] = useState(SECTEUR_DEFAUT);
   const [ville, setVille] = useState(REGIONS[REGION_DEFAUT][0]);
   const [pages, setPages] = useState("1");
+  const [campagne, setCampagne] = useState("Phase 1");
   const [pending, start] = useTransition();
   const [auditPending, startAudit] = useTransition();
 
@@ -64,6 +66,7 @@ export function RechercheToolbar({
         secteur,
         villes: villesCible,
         pages: Number(pages),
+        campagne,
       });
       if (res.ok) {
         toast.success(
@@ -100,6 +103,17 @@ export function RechercheToolbar({
   return (
     <Card>
       <CardContent className="space-y-4 pt-6">
+        <div className="space-y-1.5">
+          <Label htmlFor="campagne">Campagne (groupe de prospection)</Label>
+          <Input
+            id="campagne"
+            value={campagne}
+            onChange={(e) => setCampagne(e.target.value)}
+            placeholder="Ex. Phase 1 — habitat Angers"
+            className="sm:max-w-xs"
+          />
+        </div>
+
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <div className="space-y-1.5">
             <Label>Région</Label>
@@ -170,7 +184,7 @@ export function RechercheToolbar({
             {pending ? "Recherche + audit…" : "Lancer la recherche (15 max)"}
           </Button>
 
-          <ImportCsvDialog secteur={secteur} />
+          <ImportCsvDialog secteur={secteur} campagne={campagne} />
 
           <Button
             variant="outline"
@@ -213,14 +227,14 @@ export function RechercheToolbar({
   );
 }
 
-function ImportCsvDialog({ secteur }: { secteur: string }) {
+function ImportCsvDialog({ secteur, campagne }: { secteur: string; campagne: string }) {
   const [open, setOpen] = useState(false);
   const [csv, setCsv] = useState("");
   const [pending, start] = useTransition();
 
   function importer() {
     start(async () => {
-      const res = await importerProspectsCsv(csv, secteur);
+      const res = await importerProspectsCsv(csv, secteur, campagne);
       if (res.ok) {
         toast.success(
           `${res.ajoutes} prospect(s) importé(s), ${res.audites ?? 0} audité(s) ` +

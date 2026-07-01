@@ -60,7 +60,7 @@ async function mapLimit<T, R>(
 
 // Insère un lead en dédupliquant. Renvoie l'id créé, ou null si doublon/ignoré.
 async function upsertLead(
-  lead: LeadBrut & { region?: string; secteur?: string },
+  lead: LeadBrut & { region?: string; secteur?: string; campagne?: string },
 ): Promise<string | null> {
   const nom = lead.nom.trim();
   if (!nom) return null;
@@ -75,6 +75,7 @@ async function upsertLead(
     telephone: lead.telephone || null,
     region: lead.region || null,
     secteur: lead.secteur || null,
+    campagne: lead.campagne?.trim() || null,
   };
 
   // Clé de dédup : domaine en priorité, sinon placeId.
@@ -108,6 +109,7 @@ export async function collecterProspects(input: {
   villes: string[];
   keywords?: string[];
   pages?: number;
+  campagne?: string;
 }): Promise<{
   ok: boolean;
   ajoutes?: number;
@@ -151,7 +153,12 @@ export async function collecterProspects(input: {
   const createdIds: string[] = [];
   for (const lead of echantillon) {
     if (createdIds.length >= LIMITE_PAR_RECHERCHE) break;
-    const id = await upsertLead({ ...lead, region, secteur: input.secteur });
+    const id = await upsertLead({
+      ...lead,
+      region,
+      secteur: input.secteur,
+      campagne: input.campagne,
+    });
     if (id) createdIds.push(id);
   }
   revalidatePath(PAGE); // les 15 apparaissent tout de suite (avant scoring)
@@ -168,6 +175,7 @@ export async function collecterProspects(input: {
 export async function importerProspectsCsv(
   csv: string,
   secteur?: string,
+  campagne?: string,
 ): Promise<{
   ok: boolean;
   ajoutes?: number;
@@ -197,6 +205,7 @@ export async function importerProspectsCsv(
       telephone: (row.telephone ?? row.Telephone ?? row.tel ?? "").trim(),
       placeId: "",
       secteur,
+      campagne,
     });
     if (id) createdIds.push(id);
   }

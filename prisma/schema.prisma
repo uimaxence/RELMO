@@ -286,6 +286,7 @@ model Prospect {
   email     String? // meilleur email trouvé à l'audit
   region    String?
   secteur   String? // clé de secteur (habitat | sante | ...)
+  campagne  String? // groupe/phase de prospection (ex. « Phase 1 ») pour trier
   placeId   String? @unique // identifiant Google Places (dédup)
 
   // Audit du site (rempli à la demande)
