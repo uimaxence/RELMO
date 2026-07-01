@@ -23,7 +23,7 @@ export default async function WishlistPage() {
     prisma.envie.findMany({ orderBy: { createdAt: "desc" } }),
     prisma.contrat.aggregate({
       _sum: { montantMensuel: true },
-      where: { statut: "actif", dateDebut: { lte: now } },
+      where: { statut: "actif", dateDebut: { lte: now }, facturationDemarree: true },
     }),
   ]);
 

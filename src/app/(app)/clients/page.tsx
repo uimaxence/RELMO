@@ -31,7 +31,7 @@ export default async function ClientsPage() {
   const rows = clients.map((c) => {
     const contrats = c.sites.flatMap((s) => s.contrats);
     const mrr = contrats
-      .filter((ct) => ct.statut === "actif" && ct.dateDebut <= now)
+      .filter((ct) => ct.statut === "actif" && ct.dateDebut <= now && ct.facturationDemarree)
       .reduce((sum, ct) => sum + ct.montantMensuel, 0);
     return { ...c, nbSites: c.sites.length, mrr };
   });

@@ -188,7 +188,7 @@ export default async function ClientDetailPage({
           <div className="grid gap-4 md:grid-cols-2">
             {client.sites.map((site) => {
               const mrr = site.contrats
-                .filter((ct) => ct.statut === "actif" && ct.dateDebut <= now)
+                .filter((ct) => ct.statut === "actif" && ct.dateDebut <= now && ct.facturationDemarree)
                 .reduce((s, ct) => s + ct.montantMensuel, 0);
               return (
                 <Card key={site.id}>

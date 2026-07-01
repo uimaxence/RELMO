@@ -59,7 +59,7 @@ export default async function PortailPage({
   // Abonnement mensuel (contrats actifs démarrés).
   const mrr = client.sites
     .flatMap((s) => s.contrats)
-    .filter((ct) => ct.statut === "actif" && ct.dateDebut <= now)
+    .filter((ct) => ct.statut === "actif" && ct.dateDebut <= now && ct.facturationDemarree)
     .reduce((s, ct) => s + ct.montantMensuel, 0);
 
   // Récap vendu vs livré du mois (livrables visibles client).

@@ -8,7 +8,7 @@ export async function captureSnapshot(periode = currentPeriode()) {
   const [mrrAgg, potentielAgg, nbClients, nbContrats] = await Promise.all([
     prisma.contrat.aggregate({
       _sum: { montantMensuel: true },
-      where: { statut: "actif", dateDebut: { lte: now } },
+      where: { statut: "actif", dateDebut: { lte: now }, facturationDemarree: true },
     }),
     prisma.devis.aggregate({
       _sum: { montantMensuelPropose: true },

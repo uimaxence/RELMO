@@ -21,7 +21,7 @@ const VOIX =
 async function mrrActuel(): Promise<number> {
   const agg = await prisma.contrat.aggregate({
     _sum: { montantMensuel: true },
-    where: { statut: "actif", dateDebut: { lte: new Date() } },
+    where: { statut: "actif", dateDebut: { lte: new Date() }, facturationDemarree: true },
   });
   return agg._sum.montantMensuel ?? 0;
 }
@@ -207,7 +207,7 @@ export async function suggererTaches(): Promise<
       ensureObjectif(),
       prisma.contrat.aggregate({
         _sum: { montantMensuel: true },
-        where: { statut: "actif", dateDebut: { lte: new Date() } },
+        where: { statut: "actif", dateDebut: { lte: new Date() }, facturationDemarree: true },
       }),
       prisma.devis.findMany({
         where: { statut: { in: ["brouillon", "envoye", "en_nego"] } },
@@ -360,6 +360,106 @@ export async function extraireDevisDepuisTexte(
   } catch {
     return { ok: false, error: "Réponse IA illisible (JSON invalide)." };
   }
+}
+
+// --- Audit commercial d'un prospect (DeepSeek, mode JSON) ---
+// À partir des signaux techniques bruts d'un site, produit un score + des accroches.
+// Réutilise le socle chat() ; dégrade proprement sans clé DeepSeek.
+export type ProspectAudit = {
+  score: number | null;
+  design: string;
+  anciennete: string;
+  pointsFaibles: string[];
+  accrocheEmail: string;
+  accrocheLinkedin: string;
+};
+
+const SYS_AUDIT =
+  "Tu es l'assistant de prospection d'un développeur web freelance basé à Angers (49). " +
+  "Il crée des sites modernes (Next.js, SEO local, performance) pour des entreprises locales. " +
+  "À partir des signaux techniques bruts d'un site prospect, tu produis une évaluation commerciale et deux accroches.\n" +
+  "Règles :\n" +
+  "- Réponds UNIQUEMENT en JSON valide.\n" +
+  "- Français, ton naturel, professionnel et chaleureux, JAMAIS de flatterie générique.\n" +
+  "- Accroches COURTES (2-4 phrases), centrées sur 1-2 problèmes concrets repérés + le bénéfice. Pas de jargon.\n" +
+  "- Termine par une question légère ou une proposition simple (audit offert, échange de 15 min).\n" +
+  "- Si pas de site : angle « vous n'apparaissez pas en ligne / pas de site = clients perdus ».\n" +
+  'Schéma : {"score":<0-100>,"design":"<1 phrase>","anciennete":"<1 phrase>","points_faibles":["..."],"accroche_email":"...","accroche_linkedin":"..."}';
+
+export async function auditerProspect(input: {
+  nom: string;
+  ville?: string | null;
+  activite?: string | null;
+  statutSite: string;
+  signaux: unknown;
+}): Promise<{ ok: true; data: ProspectAudit } | { ok: false; error: string }> {
+  const res = await chat({
+    provider: "deepseek",
+    jsonMode: true,
+    temperature: 0.5,
+    maxTokens: 700,
+    messages: [
+      { role: "system", content: SYS_AUDIT },
+      {
+        role: "user",
+        content:
+          "Signaux du prospect :\n" +
+          JSON.stringify(
+            {
+              entreprise: input.nom,
+              ville: input.ville ?? "",
+              activite: input.activite ?? "",
+              statut_site: input.statutSite,
+              signaux: input.signaux,
+            },
+            null,
+            2,
+          ),
+      },
+    ],
+  });
+  if (!res.ok) return res;
+
+  try {
+    const raw = JSON.parse(res.text);
+    const score = Number(raw.score);
+    return {
+      ok: true,
+      data: {
+        score: Number.isFinite(score) ? Math.max(0, Math.min(100, Math.round(score))) : null,
+        design: typeof raw.design === "string" ? raw.design.trim() : "",
+        anciennete: typeof raw.anciennete === "string" ? raw.anciennete.trim() : "",
+        pointsFaibles: Array.isArray(raw.points_faibles)
+          ? raw.points_faibles.map((p: unknown) => String(p)).filter(Boolean)
+          : [],
+        accrocheEmail: typeof raw.accroche_email === "string" ? raw.accroche_email.trim() : "",
+        accrocheLinkedin: typeof raw.accroche_linkedin === "string" ? raw.accroche_linkedin.trim() : "",
+      },
+    };
+  } catch {
+    return { ok: false, error: "Réponse IA illisible (JSON invalide)." };
+  }
+}
+
+// --- Enrichissement dirigeant + LinkedIn (Perplexity, optionnel) ---
+export async function enrichirDirigeant(input: {
+  nom: string;
+  ville?: string | null;
+  activite?: string | null;
+}): Promise<{ dirigeant: string; linkedin: string }> {
+  const q =
+    `Qui dirige l'entreprise "${input.nom}"${input.ville ? " à " + input.ville : ""} ` +
+    `(${input.activite ?? ""}) ? Donne uniquement : nom complet du dirigeant et l'URL de son ` +
+    `profil LinkedIn s'il existe. Si tu ne sais pas, dis-le.`;
+  const res = await chat({
+    provider: "perplexity",
+    temperature: 0.2,
+    maxTokens: 300,
+    messages: [{ role: "user", content: q }],
+  });
+  if (!res.ok) return { dirigeant: "", linkedin: "" };
+  const linkedin = (res.text.match(/https?:\/\/(?:[a-z]{2,3}\.)?linkedin\.com\/[^\s)"]+/i) ?? [])[0] ?? "";
+  return { dirigeant: res.text.split("\n")[0].slice(0, 120), linkedin };
 }
 
 // --- Accroches de prospection pour la to-do du jour (DeepSeek) ---

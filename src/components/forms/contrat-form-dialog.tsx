@@ -37,6 +37,7 @@ type ContratLite = {
   dateDebut: Date | string;
   dateFin: Date | string | null;
   statut: string;
+  facturationDemarree: boolean;
   note: string | null;
   motifResiliation: string | null;
 };
@@ -160,6 +161,24 @@ export function ContratFormDialog({
               />
             </Field>
           </div>
+          <Field
+            label="Facturation"
+            hint="« En attente » = contrat démarré (livrables générés) mais pas encore facturé → exclu du MRR facturé."
+            error={state?.fieldErrors?.facturationDemarree}
+          >
+            <Select
+              name="facturationDemarree"
+              defaultValue={contrat ? String(contrat.facturationDemarree) : "true"}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="true">Démarrée (comptée dans le MRR)</SelectItem>
+                <SelectItem value="false">En attente de facturation</SelectItem>
+              </SelectContent>
+            </Select>
+          </Field>
           <Field
             label="Note"
             htmlFor="note"

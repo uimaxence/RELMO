@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Target, Users, Euro, BellRing, Flame, Sparkles, ChevronRight } from "lucide-react";
+import { Target, Users, Euro, BellRing, Flame, Sparkles, ChevronRight, Search } from "lucide-react";
 
 import { prisma } from "@/lib/db";
 import { PageHeader } from "@/components/page-header";
@@ -70,7 +70,7 @@ export default async function ProspectionPage() {
       ensureObjectif(),
       prisma.contrat.aggregate({
         _sum: { montantMensuel: true },
-        where: { statut: "actif", dateDebut: { lte: now } },
+        where: { statut: "actif", dateDebut: { lte: now }, facturationDemarree: true },
       }),
       prisma.client.findMany({
         orderBy: { nom: "asc" },
@@ -129,6 +129,11 @@ export default async function ProspectionPage() {
         title="Prospection"
         description="Qui contacter et relancer aujourd'hui pour décrocher le prochain client."
       >
+        <Button asChild variant="outline">
+          <Link href="/prospection/recherche">
+            <Search /> Recherche de prospects
+          </Link>
+        </Button>
         <DevisFormDialog clients={clients} sites={siteOpts} />
       </PageHeader>
 

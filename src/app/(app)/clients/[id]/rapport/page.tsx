@@ -50,7 +50,7 @@ export default async function RapportPage({
 
   const mrr = client.sites
     .flatMap((s) => s.contrats)
-    .filter((ct) => ct.statut === "actif" && ct.dateDebut <= now)
+    .filter((ct) => ct.statut === "actif" && ct.dateDebut <= now && ct.facturationDemarree)
     .reduce((s, ct) => s + ct.montantMensuel, 0);
 
   // Construit, par site, la liste vendu/livré du mois.

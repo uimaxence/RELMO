@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Euro, TrendingUp, Clock } from "lucide-react";
+import { Euro, TrendingUp, Clock, Hourglass } from "lucide-react";
 
 import { prisma } from "@/lib/db";
 import { PageHeader } from "@/components/page-header";
@@ -22,6 +22,7 @@ import { Badge } from "@/components/ui/badge";
 import { euros, dateFr } from "@/lib/format";
 import { labelOf, SOURCES } from "@/lib/constants";
 import { ObjectifMrr } from "@/components/objectif-mrr";
+import { FacturationToggle } from "@/components/mrr/facturation-toggle";
 import { ensureObjectif } from "@/lib/objectif";
 
 export const dynamic = "force-dynamic";
@@ -48,8 +49,12 @@ export default async function MrrPage() {
   const rows = clients.map((c) => {
     const contrats = c.sites.flatMap((s) => s.contrats);
     const actifs = contrats.filter((ct) => ct.statut === "actif");
-    const facture = actifs
-      .filter((ct) => ct.dateDebut <= now)
+    const demarres = actifs.filter((ct) => ct.dateDebut <= now);
+    const facture = demarres
+      .filter((ct) => ct.facturationDemarree)
+      .reduce((s, ct) => s + ct.montantMensuel, 0);
+    const enAttente = demarres
+      .filter((ct) => !ct.facturationDemarree)
       .reduce((s, ct) => s + ct.montantMensuel, 0);
     const aVenir = actifs
       .filter((ct) => ct.dateDebut > now)
@@ -60,13 +65,37 @@ export default async function MrrPage() {
       nbSites: c.sites.length,
       nbContratsActifs: actifs.length,
       facture,
+      enAttente,
       aVenir,
     };
   });
 
   const mrrFacture = rows.reduce((s, r) => s + r.facture, 0);
+  const mrrEnAttente = rows.reduce((s, r) => s + r.enAttente, 0);
   const mrrAVenir = rows.reduce((s, r) => s + r.aVenir, 0);
   const contratsActifs = rows.reduce((s, r) => s + r.nbContratsActifs, 0);
+
+  // Contrats démarrés mais pas encore facturés (exclus du MRR facturé).
+  const enAttenteDetail = clients
+    .flatMap((c) =>
+      c.sites.flatMap((s) =>
+        s.contrats
+          .filter(
+            (ct) =>
+              ct.statut === "actif" && ct.dateDebut <= now && !ct.facturationDemarree,
+          )
+          .map((ct) => ({
+            contratId: ct.id,
+            client: c.nom,
+            site: s.nom,
+            siteId: s.id,
+            libelle: ct.libelle,
+            montant: ct.montantMensuel,
+            dateDebut: ct.dateDebut,
+          })),
+      ),
+    )
+    .sort((a, b) => a.dateDebut.getTime() - b.dateDebut.getTime());
 
   // Contrats actifs pas encore démarrés (détail du « à venir »).
   const aVenirDetail = clients
@@ -92,7 +121,7 @@ export default async function MrrPage() {
     const key = c.source ?? "non_precise";
     const facture = c.sites
       .flatMap((s) => s.contrats)
-      .filter((ct) => ct.statut === "actif" && ct.dateDebut <= now)
+      .filter((ct) => ct.statut === "actif" && ct.dateDebut <= now && ct.facturationDemarree)
       .reduce((s, ct) => s + ct.montantMensuel, 0);
     const g = parSource.get(key) ?? { mrr: 0, nbClients: 0 };
     g.mrr += facture;
@@ -130,6 +159,12 @@ export default async function MrrPage() {
       hint: `${contratsActifs} contrat${contratsActifs > 1 ? "s" : ""} actif${contratsActifs > 1 ? "s" : ""}`,
     },
     {
+      label: "En attente de facturation",
+      value: euros(mrrEnAttente),
+      icon: Hourglass,
+      hint: "Démarré, pas encore facturé",
+    },
+    {
       label: "À venir",
       value: euros(mrrAVenir),
       icon: Clock,
@@ -137,9 +172,9 @@ export default async function MrrPage() {
     },
     {
       label: "MRR potentiel",
-      value: euros(mrrFacture + mrrAVenir),
+      value: euros(mrrFacture + mrrEnAttente + mrrAVenir),
       icon: TrendingUp,
-      hint: "Facturé + à venir",
+      hint: "Facturé + en attente + à venir",
     },
   ];
 
@@ -150,7 +185,7 @@ export default async function MrrPage() {
         description="Revenu récurrent mensuel : ce qui est facturé aujourd'hui et ce qui arrive."
       />
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {kpis.map((k) => (
           <Card key={k.label}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -182,6 +217,7 @@ export default async function MrrPage() {
                 <TableHead className="pl-6">Client</TableHead>
                 <TableHead className="text-center">Sites</TableHead>
                 <TableHead className="text-center">Contrats actifs</TableHead>
+                <TableHead className="text-right">En attente</TableHead>
                 <TableHead className="text-right">À venir</TableHead>
                 <TableHead className="pr-6 text-right">MRR facturé</TableHead>
               </TableRow>
@@ -196,6 +232,9 @@ export default async function MrrPage() {
                   </TableCell>
                   <TableCell className="text-center">{r.nbSites}</TableCell>
                   <TableCell className="text-center">{r.nbContratsActifs}</TableCell>
+                  <TableCell className="text-right font-mono tabular-nums text-warning-ink">
+                    {r.enAttente > 0 ? euros(r.enAttente) : "—"}
+                  </TableCell>
                   <TableCell className="text-right font-mono tabular-nums text-muted-foreground">
                     {r.aVenir > 0 ? euros(r.aVenir) : "—"}
                   </TableCell>
@@ -247,6 +286,46 @@ export default async function MrrPage() {
           </Table>
         </CardContent>
       </Card>
+
+      {enAttenteDetail.length > 0 ? (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">En attente de facturation</CardTitle>
+            <CardDescription>
+              Contrats démarrés (livrables générés) mais pas encore facturés — exclus du
+              MRR. Marque-les facturés une fois la facture émise.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ul className="divide-y">
+              {enAttenteDetail.map((d) => (
+                <li
+                  key={d.contratId}
+                  className="flex items-center justify-between gap-2 py-2 text-sm"
+                >
+                  <div className="min-w-0">
+                    <Link
+                      href={`/sites/${d.siteId}`}
+                      className="font-medium hover:underline"
+                    >
+                      {d.site}
+                    </Link>{" "}
+                    <span className="text-muted-foreground">
+                      · {d.client} · {d.libelle} · démarré le {dateFr(d.dateDebut)}
+                    </span>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-3">
+                    <span className="font-mono font-medium tabular-nums">
+                      {euros(d.montant)}/mois
+                    </span>
+                    <FacturationToggle contratId={d.contratId} facturee={false} />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      ) : null}
 
       {aVenirDetail.length > 0 ? (
         <Card>

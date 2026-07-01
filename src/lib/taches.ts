@@ -93,7 +93,7 @@ export async function generateTachesSemaine(semaine: string) {
   const objectif = await ensureObjectif();
   const mrrAgg = await prisma.contrat.aggregate({
     _sum: { montantMensuel: true },
-    where: { statut: "actif", dateDebut: { lte: new Date() } },
+    where: { statut: "actif", dateDebut: { lte: new Date() }, facturationDemarree: true },
   });
   const c = computeObjectif(objectif, mrrAgg._sum.montantMensuel ?? 0);
   const prospExiste =

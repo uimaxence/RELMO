@@ -42,6 +42,11 @@ export const contratSchema = z.object({
   dateDebut: z.coerce.date({ message: "Date de début invalide." }),
   dateFin: optionalDate,
   statut: z.enum(["actif", "en_pause", "resilie"]),
+  // "true" | "false" venant d'un <select> → booléen. Défaut : facturation démarrée.
+  facturationDemarree: z.preprocess(
+    (v) => v !== "false" && v !== false,
+    z.boolean(),
+  ),
   note: optionalString,
   motifResiliation: optionalString,
 });

@@ -111,6 +111,14 @@ export const ENVIE_CATEGORIES: Option[] = [
   { value: "autre", label: "Autre" },
 ];
 
+// Prospection sortante — suivi d'un prospect découvert (avant conversion client).
+export const PROSPECT_STATUTS: Option[] = [
+  { value: "nouveau", label: "Nouveau" },
+  { value: "a_contacter", label: "À contacter" },
+  { value: "ecarte", label: "Écarté" },
+  { value: "converti", label: "Converti" },
+];
+
 export function labelOf(options: Option[], value: string): string {
   return options.find((o) => o.value === value)?.label ?? value;
 }

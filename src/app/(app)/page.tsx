@@ -43,7 +43,7 @@ export default async function DashboardPage() {
       prisma.contrat.count({ where: { statut: "actif" } }),
       prisma.contrat.aggregate({
         _sum: { montantMensuel: true },
-        where: { statut: "actif", dateDebut: { lte: now } },
+        where: { statut: "actif", dateDebut: { lte: now }, facturationDemarree: true },
       }),
       prisma.contrat.aggregate({
         _sum: { montantMensuel: true },

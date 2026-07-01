@@ -67,6 +67,7 @@ model Contrat {
   dateDebut      DateTime  @default(now())
   dateFin        DateTime?
   statut         String    @default("actif") // actif | en_pause | resilie
+  facturationDemarree Boolean @default(true) // false = actif & démarré mais pas encore facturé → exclu du MRR facturé (compté en « en attente de facturation »)
   note           String?
   motifResiliation String? // si résilié : pourquoi (signal de churn — F14)
   devisId        String?   @unique // devis à l'origine du contrat
@@ -265,6 +266,51 @@ model Reglage {
   id                 String   @id @default("singleton")
   pourcentagePlafond Float    @default(30) // wish-list : seuil d'abordabilité (% du MRR)
   updatedAt          DateTime @updatedAt
+}
+
+// --- Prospection sortante : moteur de découverte (scraping Places + audit IA) ---
+
+// Un prospect "froid" découvert par scraping Google Places ou import CSV, avant
+// qu'il devienne un Client. Audité (site + contact + score + accroches) à la
+// demande. Quand on décide d'attaquer, on le convertit en Client (statut prospect).
+// Dédup : `domaine` (site) et `placeId` (Google) sont uniques — Postgres tolère
+// plusieurs NULL, donc les prospects sans site coexistent.
+model Prospect {
+  id        String  @id @default(cuid())
+  nom       String
+  site      String? // URL du site (vide = prospect chaud, site à créer)
+  domaine   String? @unique // hôte normalisé, clé de dédup
+  ville     String?
+  activite  String? // mot-clé secteur ayant remonté ce prospect
+  telephone String?
+  email     String? // meilleur email trouvé à l'audit
+  region    String?
+  secteur   String? // clé de secteur (habitat | sante | ...)
+  placeId   String? @unique // identifiant Google Places (dédup)
+
+  // Audit du site (rempli à la demande)
+  statutAudit      String  @default("a_auditer") // a_auditer | ok | aucun_site | erreur
+  score            Int? // 0-100 (potentiel commercial estimé)
+  design           String?
+  anciennete       String?
+  pointsFaibles    String? // joints par " • "
+  emailsTous       String? // tous les emails captés, séparés par espace
+  siret            String?
+  dirigeant        String?
+  linkedin         String?
+  accrocheEmail    String?
+  accrocheLinkedin String?
+
+  // Suivi commercial
+  statut    String   @default("nouveau") // nouveau | a_contacter | ecarte | converti
+  clientId  String? // Client créé à la conversion (lien souple, pas de FK)
+  note      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([secteur])
+  @@index([statut])
+  @@index([score])
 }
 
 // To-do quotidienne générée (F12).
