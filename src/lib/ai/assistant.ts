@@ -391,7 +391,10 @@ const SYS_AUDIT =
   "  · `jquery` présent ou `generator` daté (vieux WordPress/Wix, etc.) → techno vieillissante, design et performance à la traîne.\n" +
   "  · beaucoup d'`imgSansAlt`, `poidsHtmlKo` élevé, pas de `structuredData`/`ogTags` → SEO et image de marque en souffrance.\n" +
   "  Quand plusieurs de ces signaux sont présents, l'accroche DOIT mener avec « site daté / à moderniser côté design et mobile », " +
-  "c'est l'argument n°1. Reste honnête : parle des signaux, ne prétends pas avoir vu le rendu visuel.\n" +
+  "c'est l'argument n°1. Reste honnête : parle des signaux, ne prétends pas avoir vu le rendu visuel exact.\n" +
+  "- Tu peux TOUJOURS souligner l'intérêt de moderniser le visuel / le rendre plus actuel (tendances web du moment) " +
+  "pour améliorer l'expérience des visiteurs et mieux les convertir en clients — présenté comme un bénéfice général, " +
+  "sans affirmer avoir inspecté le design précis.\n" +
   'Schéma : {"score":<0-100>,"design":"<1 phrase>","anciennete":"<1 phrase>","points_faibles":["..."],"accroche_email":"...","accroche_linkedin":"..."}';
 
 export async function auditerProspect(input: {

@@ -93,11 +93,67 @@ export type ProspectRow = {
   nbRelances: number;
 };
 
-function scoreTone(score: number | null): string {
-  if (score == null) return "text-muted-foreground";
-  if (score >= 65) return "text-positive-ink";
-  if (score >= 40) return "text-warning-ink";
-  return "text-muted-foreground";
+function initiales(nom: string): string {
+  return nom
+    .replace(/[^\p{L}\s]/gu, "")
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase() ?? "")
+    .join("");
+}
+
+function Avatar({ nom, size = "size-9" }: { nom: string; size?: string }) {
+  return (
+    <div
+      className={`flex ${size} shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold text-muted-foreground ring-1 ring-border`}
+    >
+      {initiales(nom) || "?"}
+    </div>
+  );
+}
+
+function ScorePill({ score, big = false }: { score: number; big?: boolean }) {
+  const cls =
+    score >= 65
+      ? "bg-positive-bg text-positive-ink"
+      : score >= 40
+        ? "bg-warning-bg text-warning-ink"
+        : "bg-muted text-muted-foreground";
+  const size = big ? "px-3 py-1 text-lg" : "min-w-9 px-2 py-0.5 text-sm";
+  return (
+    <span
+      className={`inline-flex items-center justify-center rounded-full font-mono font-semibold tabular-nums ${size} ${cls}`}
+    >
+      {score}
+    </span>
+  );
+}
+
+// E-mail : clic = copie dans le presse-papier (pas d'ouverture de client mail).
+function CopyEmail({ email }: { email: string }) {
+  const [done, setDone] = useState(false);
+  async function copy(e: React.MouseEvent) {
+    e.stopPropagation();
+    try {
+      await navigator.clipboard.writeText(email);
+      setDone(true);
+      toast.success("E-mail copié.");
+      setTimeout(() => setDone(false), 1500);
+    } catch {
+      toast.error("Copie impossible.");
+    }
+  }
+  return (
+    <button
+      type="button"
+      onClick={copy}
+      className="inline-flex items-center gap-1 rounded-md hover:text-foreground hover:underline"
+      title="Copier l'e-mail"
+    >
+      {done ? <Check className="size-3 text-positive-ink" /> : <Mail className="size-3" />} {email}
+    </button>
+  );
 }
 
 // Filtres de statut (segmentation du pipeline).
@@ -212,9 +268,14 @@ export function ProspectTable({ prospects }: { prospects: ProspectRow[] }) {
                   className={`cursor-pointer ${p.statut === "ecarte" ? "opacity-55" : ""}`}
                 >
                   <TableCell>
-                    <div className="font-medium">{p.nom}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {[p.activite, p.ville].filter(Boolean).join(" · ") || "—"}
+                    <div className="flex items-center gap-3">
+                      <Avatar nom={p.nom} />
+                      <div className="min-w-0">
+                        <div className="truncate font-medium">{p.nom}</div>
+                        <div className="truncate text-xs text-muted-foreground">
+                          {[p.activite, p.ville].filter(Boolean).join(" · ") || "—"}
+                        </div>
+                      </div>
                     </div>
                   </TableCell>
                   <TableCell>
@@ -231,9 +292,7 @@ export function ProspectTable({ prospects }: { prospects: ProspectRow[] }) {
                   </TableCell>
                   <TableCell className="text-center">
                     {p.score != null ? (
-                      <span className={`font-mono font-medium tabular-nums ${scoreTone(p.score)}`}>
-                        {p.score}
-                      </span>
+                      <ScorePill score={p.score} />
                     ) : p.statutAudit === "erreur" ? (
                       <AlertTriangle className="mx-auto size-4 text-warning-ink" />
                     ) : (
@@ -311,28 +370,20 @@ function ProspectSheet({
       <SheetContent className="gap-0 overflow-y-auto p-0 !w-[92vw] !max-w-none sm:!w-[52vw]">
         {p ? (
           <>
-            <SheetHeader className="border-b p-5">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
+            <SheetHeader className="border-b bg-muted/30 p-5">
+              <div className="flex items-start gap-3">
+                <Avatar nom={p.nom} size="size-11" />
+                <div className="min-w-0 flex-1">
                   <SheetTitle className="truncate">{p.nom}</SheetTitle>
-                  <SheetDescription className="mt-1">
+                  <SheetDescription className="mt-0.5 truncate">
                     {[p.activite, p.ville].filter(Boolean).join(" · ") || "Prospect"}
                     {p.campagne ? ` · ${p.campagne}` : ""}
                   </SheetDescription>
-                </div>
-                {p.score != null ? (
-                  <div className="shrink-0 text-right">
-                    <div className={`font-mono text-2xl font-medium tabular-nums ${scoreTone(p.score)}`}>
-                      {p.score}
-                    </div>
-                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                      / 100
-                    </div>
+                  <div className="mt-2">
+                    <StatutTags p={p} />
                   </div>
-                ) : null}
-              </div>
-              <div className="mt-1">
-                <StatutTags p={p} />
+                </div>
+                {p.score != null ? <ScorePill score={p.score} big /> : null}
               </div>
             </SheetHeader>
 
@@ -351,11 +402,7 @@ function ProspectSheet({
                 ) : (
                   <span className="text-muted-foreground">Sans site</span>
                 )}
-                {p.email ? (
-                  <a href={`mailto:${p.email}`} className="inline-flex items-center gap-1 hover:underline">
-                    <Mail className="size-3" /> {p.email}
-                  </a>
-                ) : null}
+                {p.email ? <CopyEmail email={p.email} /> : null}
                 {p.telephone ? (
                   <span className="inline-flex items-center gap-1 text-muted-foreground">
                     <Phone className="size-3" /> {p.telephone}
