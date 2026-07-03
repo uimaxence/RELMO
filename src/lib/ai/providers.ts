@@ -32,7 +32,10 @@ export const PROVIDERS: Record<AiProvider, ProviderConfig> = {
     label: "Gemini",
     baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai",
     envKey: "GEMINI_API_KEY",
-    defaultModel: "gemini-2.0-flash",
+    // Flash-Lite « latest » : alias (jamais déprécié) ET non-« thinking » — un
+    // modèle thinking consomme le budget de tokens en raisonnement et tronque le
+    // JSON. Lite = réponse complète, le moins cher, suffisant pour juger un visuel.
+    defaultModel: "gemini-flash-lite-latest",
   },
 };
 
