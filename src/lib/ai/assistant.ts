@@ -393,6 +393,8 @@ ACCROCHE_EMAIL — cold email court (~90-110 mots MAX), dans cet ordre :
 6. CTA à faible engagement : une action concrète + un choix binaire de créneau. Ex : "je vous prépare 2-3 pistes sur votre site — plutôt mardi ou jeudi ?"
 7. Signature : Maxence
 
+MISE EN FORME (obligatoire) : « Objet : … » en 1re ligne, puis une ligne vide. Le corps en 2 à 3 paragraphes COURTS séparés CHACUN par une ligne vide (jamais un seul bloc dense) : (1) ouverture + observation, (2) le levier + sa conséquence + la proposition de montrer le portfolio, (3) le CTA. Enfin une ligne vide puis « Maxence » seul. Sépare les paragraphes par un vrai double saut de ligne (\\n\\n).
+
 TABLE JARGON → BÉNÉFICE (obligatoire)
 - Poids HTML élevé / Ko → "lent à s'afficher sur mobile ; beaucoup de visiteurs partent avant même de voir vos réalisations"
 - Pas de H1 / meta / SEO → "Google vous fait remonter moins haut que vos concurrents locaux quand on cherche à Angers"
