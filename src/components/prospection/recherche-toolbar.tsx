@@ -50,8 +50,34 @@ export function RechercheToolbar({
   const [campagne, setCampagne] = useState("Phase 1");
   const [pending, start] = useTransition();
   const [auditPending, startAudit] = useTransition();
+  const [looping, setLooping] = useState(false);
+  const [progres, setProgres] = useState<{ done: number; restants: number } | null>(null);
 
   const villes = useMemo(() => REGIONS[region] ?? [], [region]);
+
+  // Audit par petits lots enchaînés (chaque appel tient sous la limite serverless).
+  // On boucle jusqu'à épuisement des non-audités, avec progression en direct.
+  async function boucleAudit() {
+    setLooping(true);
+    let done = 0;
+    try {
+      for (;;) {
+        const res = await auditerNonAudites();
+        if (!res.ok) {
+          toast.error(res.error ?? "Échec de l'audit.");
+          break;
+        }
+        done += res.audites ?? 0;
+        setProgres({ done, restants: res.restants ?? 0 });
+        // Fin : plus rien à auditer, ou un lot n'a rien pu traiter (sécurité anti-boucle).
+        if (!res.restants || (res.audites ?? 0) === 0) break;
+      }
+      if (done > 0) toast.success(`${done} prospect(s) audité(s) (site + visuel).`);
+    } finally {
+      setLooping(false);
+      setProgres(null);
+    }
+  }
 
   function onRegionChange(v: string) {
     setRegion(v);
@@ -68,14 +94,15 @@ export function RechercheToolbar({
         pages: Number(pages),
         campagne,
       });
-      if (res.ok) {
-        toast.success(
-          `${res.ajoutes} prospect(s) ajouté(s), ${res.audites ?? 0} audité(s) par DeepSeek ` +
-            `(sur ${res.total} trouvés).`,
-        );
-      } else {
+      if (!res.ok) {
         toast.error(res.error ?? "Échec de la collecte.");
+        return;
       }
+      toast.success(
+        `${res.ajoutes} prospect(s) ajouté(s) sur ${res.total} trouvés. Audit en cours…`,
+      );
+      // Enchaîne l'audit (site + visuel) par lots, sans bloquer la collecte.
+      await boucleAudit();
     });
   }
 
@@ -87,17 +114,7 @@ export function RechercheToolbar({
   }
 
   function auditerTous() {
-    startAudit(async () => {
-      const res = await auditerNonAudites();
-      if (res.ok) {
-        toast.success(
-          `${res.audites} prospect(s) audité(s).` +
-            (res.restants ? ` ${res.restants} restant(s) — relance pour continuer.` : ""),
-        );
-      } else {
-        toast.error(res.error ?? "Échec de l'audit.");
-      }
-    });
+    void boucleAudit();
   }
 
   return (
@@ -179,21 +196,28 @@ export function RechercheToolbar({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <Button onClick={lancer} disabled={pending || !placesActif}>
-            {pending ? <Loader2 className="animate-spin" /> : <Search />}
-            {pending ? "Recherche + audit…" : "Lancer la recherche (15 max)"}
+          <Button onClick={lancer} disabled={pending || looping || !placesActif}>
+            {pending || looping ? <Loader2 className="animate-spin" /> : <Search />}
+            {pending || looping ? "Recherche + audit…" : "Lancer la recherche (15 max)"}
           </Button>
 
-          <ImportCsvDialog secteur={secteur} campagne={campagne} />
+          <ImportCsvDialog
+            secteur={secteur}
+            campagne={campagne}
+            onImported={boucleAudit}
+            disabled={looping || pending}
+          />
 
           <Button
             variant="outline"
             onClick={auditerTous}
-            disabled={auditPending || nbAAuditer === 0}
+            disabled={looping || pending || nbAAuditer === 0}
           >
-            {auditPending ? <Loader2 className="animate-spin" /> : <Sparkles className="text-brand" />}
-            {auditPending
-              ? "En cours…"
+            {looping ? <Loader2 className="animate-spin" /> : <Sparkles className="text-brand" />}
+            {looping
+              ? progres
+                ? `Audit… ${progres.done} faits · ${progres.restants} restants`
+                : "Audit…"
               : `Auditer les non-audités${nbAAuditer ? ` (${nbAAuditer})` : ""}`}
           </Button>
 
@@ -201,7 +225,7 @@ export function RechercheToolbar({
             <Button
               variant="ghost"
               onClick={viderNonAudites}
-              disabled={auditPending}
+              disabled={auditPending || looping || pending}
               className="text-muted-foreground"
             >
               <Trash2 /> Vider les non-audités
@@ -210,9 +234,10 @@ export function RechercheToolbar({
         </div>
 
         <p className="text-xs text-muted-foreground">
-          Une recherche garde et note les <strong>15</strong> meilleurs prospects (audit
-          DeepSeek automatique). Elle tourne côté serveur : tu peux changer d&apos;onglet
-          sans l&apos;interrompre.
+          Une recherche garde les <strong>15</strong> meilleurs prospects, puis les audite
+          (site <strong>+ analyse visuelle</strong>) par petits lots. Garde l&apos;onglet
+          ouvert : ça peut prendre quelques minutes, la progression s&apos;affiche sur le
+          bouton.
           {!placesActif ? (
             <>
               {" "}
@@ -227,7 +252,17 @@ export function RechercheToolbar({
   );
 }
 
-function ImportCsvDialog({ secteur, campagne }: { secteur: string; campagne: string }) {
+function ImportCsvDialog({
+  secteur,
+  campagne,
+  onImported,
+  disabled,
+}: {
+  secteur: string;
+  campagne: string;
+  onImported: () => void | Promise<void>;
+  disabled?: boolean;
+}) {
   const [open, setOpen] = useState(false);
   const [csv, setCsv] = useState("");
   const [pending, start] = useTransition();
@@ -237,11 +272,11 @@ function ImportCsvDialog({ secteur, campagne }: { secteur: string; campagne: str
       const res = await importerProspectsCsv(csv, secteur, campagne);
       if (res.ok) {
         toast.success(
-          `${res.ajoutes} prospect(s) importé(s), ${res.audites ?? 0} audité(s) ` +
-            `(${res.total} lignes lues).`,
+          `${res.ajoutes} prospect(s) importé(s) (${res.total} lignes). Audit en cours…`,
         );
         setOpen(false);
         setCsv("");
+        await onImported();
       } else {
         toast.error(res.error ?? "Import impossible.");
       }
@@ -256,7 +291,7 @@ function ImportCsvDialog({ secteur, campagne }: { secteur: string; campagne: str
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline">
+        <Button variant="outline" disabled={disabled}>
           <Upload /> Importer un CSV
         </Button>
       </DialogTrigger>

@@ -18,6 +18,7 @@ export type Signaux = {
   imgCount: number;
   imgSansAlt: number;
   derniereAnneeVisible: number | null;
+  anneeCopyright: number | null; // année du © en pied de page = dernière mise à jour probable
   poidsHtmlKo: number;
 };
 
@@ -131,6 +132,13 @@ function buildSignaux(html: string, finalUrl: string): Signaux {
   const imgTags = html.match(/<img\b[^>]*>/gi) ?? [];
   const imgSansAlt = imgTags.filter((t) => !/\salt\s*=/i.test(t)).length;
 
+  // Année du copyright : on cherche un « © / copyright / tous droits réservés »
+  // suivi (à ~40 caractères) d'une année → signal fiable de dernière mise à jour.
+  const copyMatch = html.match(
+    /(?:©|&copy;|copyright|tous droits réservés)[^<]{0,40}?(20\d{2})/i,
+  );
+  const anneeCopyright = copyMatch ? +copyMatch[1] : null;
+
   return {
     url: finalUrl,
     https: finalUrl.startsWith("https"),
@@ -146,6 +154,7 @@ function buildSignaux(html: string, finalUrl: string): Signaux {
     imgCount: imgTags.length,
     imgSansAlt,
     derniereAnneeVisible: years.length ? Math.max(...years) : null,
+    anneeCopyright,
     poidsHtmlKo: Math.round(html.length / 1024),
   };
 }

@@ -396,15 +396,24 @@ ACCROCHE_EMAIL : cold email court (~90-110 mots MAX), dans cet ordre :
 6. CTA à faible engagement : une action concrète + un choix binaire de créneau. Ex : "je vous prépare 2-3 pistes sur votre site, plutôt mardi ou jeudi ?"
 7. Signature : Maxence
 
+PRIORITÉ DES LEVIERS (choisis LE plus fort et concret pour CE prospect, dans cet ordre) :
+1. DESIGN daté, si un "visuel" le confirme (voir LEVIER DESIGN).
+2. PAS ADAPTÉ AU MOBILE, si "viewport" est absent : « la majorité de vos visiteurs sont sur téléphone et votre site n'est pas pensé pour, beaucoup repartent aussitôt ».
+3. SITE PAS À JOUR, si "anneeCopyright" ou "derniereAnneeVisible" est ancienne (≤ année en cours moins 3), ou "generator"/"jquery" obsolète : « votre site n'a pas bougé depuis {année}, ça se voit, et Google a tendance à privilégier les sites actifs et à jour pour le référencement local ». Honnête, concret.
+4. INVISIBILITÉ LOCALE, si "villeDansTitre" est false ou pas de "structuredData" : « quand quelqu'un cherche {activité} à {ville}, ce sont vos concurrents qui remontent, pas vous ; votre site n'est pas calibré pour le référencement local ». ("structuredData" absent = « Google ne peut pas afficher vos infos, horaires et avis directement dans ses résultats ».)
+5. En DERNIER recours seulement, un point technique traduit en conséquence.
+ÉVITE comme levier principal le « poids HTML » et les « images sans alt » : le prospect s'en moque. Ne les mentionne qu'à défaut de tout le reste, et toujours traduits en conséquence business.
+
 MISE EN FORME (obligatoire) : « Objet : … » en 1re ligne, puis une ligne vide. Le corps en 2 à 3 paragraphes COURTS séparés CHACUN par une ligne vide (jamais un seul bloc dense) : (1) ouverture + observation, (2) le levier + sa conséquence + la proposition de montrer le portfolio, (3) le CTA. Enfin une ligne vide puis « Maxence » seul. Sépare les paragraphes par un vrai double saut de ligne (\\n\\n).
 
 TABLE JARGON → BÉNÉFICE (obligatoire)
-- Poids HTML élevé / Ko → "lent à s'afficher sur mobile ; beaucoup de visiteurs partent avant même de voir vos réalisations"
-- Pas de H1 / meta / SEO → "Google vous fait remonter moins haut que vos concurrents locaux quand on cherche à Angers"
-- Images sans alt → "vos photos ne rapportent aucune visibilité sur Google Images"
+- Pas de viewport / pas responsive → "votre site n'est pas adapté au mobile, alors que la plupart de vos visiteurs sont sur téléphone : ils repartent"
+- Copyright / dernière année ancienne, vieux CMS → "votre site n'a pas été mis à jour depuis {année} ; ça se voit et ça vous pénalise sur Google"
+- Ville absente du titre / pas de données structurées → "sur une recherche locale ({métier} à {ville}), vos concurrents remontent avant vous ; Google ne peut pas afficher vos infos et avis directement"
 - Template standard → "votre site ressemble à celui de vos concurrents ; rien ne vous démarque au premier coup d'œil"
-- jQuery / CMS obsolète → "faille de sécurité + site qui rame"
+- jQuery / CMS obsolète → "techno vieillissante : site plus lent et failles de sécurité"
 - Pas d'avis / réalisations → "un visiteur hésitant n'a aucune preuve pour vous faire confiance"
+- (à éviter, faute de mieux) Poids HTML élevé → "site lent à s'afficher sur mobile ; des visiteurs partent avant de voir vos réalisations"
 
 LEVIER "DESIGN" :
 - CAS 1, un champ "visuel" est fourni (une VRAIE analyse de la capture d'écran) : tu PEUX affirmer le design franchement, en t'appuyant sur son "constat" et ses "pointsVisuels" (ex. "votre site fait un peu daté, surtout la typographie et les visuels"). Reste factuel, courtois, UN SEUL point visuel, jamais méprisant. Si "modernite" vaut "moderne", NE prends PAS le design comme levier (choisis un point technique) et complimente plutôt le design.

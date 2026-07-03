@@ -39,8 +39,12 @@ async function stylesUtilisateur(): Promise<string[]> {
 // et placeId (Google) sont @unique.
 
 const PAGE = "/prospection/recherche";
-const LIMITE_PAR_RECHERCHE = 15; // on ne garde/audite que les 15 meilleurs par lancement
-const AUDIT_CONCURRENCE = 6; // audits menés en parallèle (borne le temps total)
+const LIMITE_PAR_RECHERCHE = 15; // on ne garde que les 15 meilleurs par lancement
+// L'audit inclut désormais une analyse visuelle (capture + vision) ~15-20 s/prospect.
+// Pour tenir sous la limite serverless (60 s), on audite par PETITS LOTS enchaînés
+// côté client (boucle jusqu'à épuisement), au lieu d'un gros batch bloquant.
+const AUDIT_CONCURRENCE = 4; // audits menés en parallèle dans un lot
+const AUDIT_LOT = 4; // taille d'un lot d'audit par appel (tient sous 60 s)
 const ENRICH = String(process.env.ENRICH).toLowerCase() === "true";
 const SCORE_ENRICH_MIN = Number(process.env.SCORE_ENRICH_MIN || 65);
 
@@ -172,14 +176,8 @@ export async function collecterProspects(input: {
     });
     if (id) createdIds.push(id);
   }
-  revalidatePath(PAGE); // les 15 apparaissent tout de suite (avant scoring)
-
-  // Audit DeepSeek en parallèle borné ; chaque résultat est commité individuellement.
-  const audits = await mapLimit(createdIds, AUDIT_CONCURRENCE, (id) => auditerUnProspect(id));
-  const audites = audits.filter((a) => a && a.ok).length;
-
-  revalidatePath(PAGE);
-  return { ok: true, ajoutes: createdIds.length, total: res.leads.length, audites };
+  revalidatePath(PAGE); // les 15 apparaissent tout de suite (audit lancé ensuite, en lots)
+  return { ok: true, ajoutes: createdIds.length, total: res.leads.length };
 }
 
 // (B) Import CSV — colonnes nom,site,ville,activite,telephone (mêmes que collect).
@@ -221,14 +219,7 @@ export async function importerProspectsCsv(
     if (id) createdIds.push(id);
   }
   revalidatePath(PAGE);
-
-  // Audit auto des importés, borné à LIMITE_PAR_RECHERCHE (les autres via le batch).
-  const aAuditer = createdIds.slice(0, LIMITE_PAR_RECHERCHE);
-  const audits = await mapLimit(aAuditer, AUDIT_CONCURRENCE, (id) => auditerUnProspect(id));
-  const audites = audits.filter((a) => a && a.ok).length;
-
-  revalidatePath(PAGE);
-  return { ok: true, ajoutes: createdIds.length, total: data.length, audites };
+  return { ok: true, ajoutes: createdIds.length, total: data.length };
 }
 
 // Audit d'un prospect : analyse site + DeepSeek (score + accroches) + enrichissement
@@ -243,12 +234,17 @@ export async function auditerUnProspect(
   // Analyse VISUELLE (capture + Gemini) : null si pas de clé/échec → l'accroche
   // retombe alors sur le « design couvert ». Sinon elle peut affirmer le design.
   const visuel = await analyseVisuelle(p.site);
+  // SEO local : la ville du prospect apparaît-elle dans le title ? (sinon, levier)
+  const villeDansTitre =
+    p.ville && signals.title
+      ? signals.title.toLowerCase().includes(p.ville.toLowerCase())
+      : null;
   const ia = await auditerProspect({
     nom: p.nom,
     ville: p.ville,
     activite: p.activite,
     statutSite: statut,
-    signaux: signals,
+    signaux: { ...signals, villeDansTitre },
     visuel,
     stylesUtilisateur: await stylesUtilisateur(),
   });
@@ -303,7 +299,7 @@ export async function auditerNonAudites(): Promise<{
   const aFaire = await prisma.prospect.findMany({
     where: { statutAudit: "a_auditer", statut: { not: "ecarte" } },
     orderBy: { createdAt: "asc" },
-    take: LIMITE_PAR_RECHERCHE,
+    take: AUDIT_LOT,
     select: { id: true },
   });
   const audits = await mapLimit(
