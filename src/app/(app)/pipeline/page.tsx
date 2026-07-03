@@ -6,19 +6,21 @@ import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { DevisFormDialog } from "@/components/forms/devis-form-dialog";
+import { GrilleTarifaire } from "@/components/pipeline/grille-tarifaire";
 import { ConfirmDelete } from "@/components/forms/confirm-delete";
 import { ConvertDevisButton } from "@/components/convert-devis-button";
 import { AiGenerateDialog } from "@/components/ai/ai-generate-dialog";
 import { actionRelanceNego } from "@/app/actions/ai";
 import { DevisStatusBadge } from "@/components/status-badge";
 import { deleteDevis } from "@/app/actions/devis";
+import { ensureReglage } from "@/lib/wishlist";
 import { euros, dateFr } from "@/lib/format";
-import { DEVIS_STATUTS } from "@/lib/constants";
+import { DEVIS_STATUTS, labelOf, FORMULES } from "@/lib/constants";
 
 export const dynamic = "force-dynamic";
 
 export default async function PipelinePage() {
-  const [devisList, clients, sites] = await Promise.all([
+  const [devisList, clients, sites, reglage] = await Promise.all([
     prisma.devis.findMany({
       orderBy: { updatedAt: "desc" },
       include: {
@@ -35,6 +37,7 @@ export default async function PipelinePage() {
       orderBy: { nom: "asc" },
       select: { id: true, nom: true, client: { select: { nom: true } } },
     }),
+    ensureReglage(),
   ]);
 
   const siteOpts = sites.map((s) => ({
@@ -42,6 +45,12 @@ export default async function PipelinePage() {
     nom: s.nom,
     clientNom: s.client.nom,
   }));
+
+  const paliers = {
+    palierEssentiel: reglage.palierEssentiel,
+    palierPro: reglage.palierPro,
+    tarifSuivi: reglage.tarifSuivi,
+  };
 
   const potentielNego = devisList
     .filter((d) => d.statut === "en_nego")
@@ -62,8 +71,10 @@ export default async function PipelinePage() {
         title="Pipeline & devis"
         description="Les négos et propositions, de l'idée au contrat signé."
       >
-        <DevisFormDialog clients={clients} sites={siteOpts} />
+        <DevisFormDialog clients={clients} sites={siteOpts} paliers={paliers} />
       </PageHeader>
+
+      <GrilleTarifaire {...paliers} />
 
       {devisList.length === 0 ? (
         <Card>
@@ -71,7 +82,7 @@ export default async function PipelinePage() {
             <p className="text-sm text-muted-foreground">
               Aucun devis pour l&apos;instant.
             </p>
-            <DevisFormDialog clients={clients} sites={siteOpts} />
+            <DevisFormDialog clients={clients} sites={siteOpts} paliers={paliers} />
           </CardContent>
         </Card>
       ) : (
@@ -118,7 +129,14 @@ export default async function PipelinePage() {
                             ) : null}
                           </p>
                         </div>
-                        <DevisStatusBadge statut={d.statut} />
+                        <div className="flex shrink-0 flex-col items-end gap-1">
+                          <DevisStatusBadge statut={d.statut} />
+                          {d.formule ? (
+                            <span className="text-[11px] font-medium uppercase tracking-wide text-accent-brand">
+                              {labelOf(FORMULES, d.formule)}
+                            </span>
+                          ) : null}
+                        </div>
                       </div>
 
                       <p className="font-mono text-sm tabular-nums">
@@ -169,6 +187,7 @@ export default async function PipelinePage() {
                             clients={clients}
                             sites={siteOpts}
                             devis={d}
+                            paliers={paliers}
                             trigger={
                               <Button
                                 variant="ghost"

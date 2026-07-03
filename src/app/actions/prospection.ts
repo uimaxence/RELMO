@@ -406,6 +406,21 @@ export async function marquerRelanceFaite(id: string): Promise<void> {
   revalidatePath(PAGE);
 }
 
+// « Réponse reçue » : horodate la 1re réponse (bascule si déjà marqué). Sert de
+// dénominateur au taux de réponse (cf. brief §2 : ajuster si < 2% après 150 envois).
+export async function marquerReponse(id: string): Promise<void> {
+  const p = await prisma.prospect.findUnique({
+    where: { id },
+    select: { reponduLe: true },
+  });
+  await prisma.prospect.update({
+    where: { id },
+    data: { reponduLe: p?.reponduLe ? null : new Date() },
+  });
+  revalidatePath(PAGE);
+  revalidatePath("/acquisition");
+}
+
 // « Annuler la fiche » : suppression définitive. La raison (facultative) n'est pas
 // conservée en base (la fiche disparaît) mais est tracée dans les logs serveur.
 export async function annulerProspect(id: string, raison?: string): Promise<void> {
@@ -422,6 +437,67 @@ export async function annulerProspect(id: string, raison?: string): Promise<void
 export async function supprimerProspect(id: string): Promise<void> {
   await prisma.prospect.delete({ where: { id } });
   revalidatePath(PAGE);
+}
+
+// Export CSV « propre » des fiches de prospection — pour analyser hors-app (Claude)
+// pourquoi ça ne répond pas : message généré par défaut vs message réellement envoyé,
+// croisé avec le score / les points faibles / la réponse. Deux portées :
+//   - "contactes" : uniquement les prospects réellement contactés (message envoyé).
+//   - "tous"      : toute la base de prospection.
+export async function exporterProspectionCsv(
+  scope: "contactes" | "tous" = "contactes",
+): Promise<{ ok: boolean; csv?: string; filename?: string; count?: number; error?: string }> {
+  const where =
+    scope === "contactes" ? { contacteLe: { not: null } } : {};
+
+  const prospects = await prisma.prospect.findMany({
+    where,
+    orderBy: [{ contacteLe: "desc" }, { createdAt: "desc" }],
+  });
+
+  if (prospects.length === 0) {
+    return {
+      ok: false,
+      error:
+        scope === "contactes"
+          ? "Aucun prospect contacté à exporter pour l'instant."
+          : "Aucun prospect à exporter.",
+    };
+  }
+
+  const iso = (d: Date | null) => (d ? d.toISOString().slice(0, 10) : "");
+
+  // Ordre pensé pour l'analyse : contexte → contact → réponse → messages en dernier
+  // (les 2 dernières colonnes = « généré par défaut » vs « réellement envoyé »).
+  const rows = prospects.map((p) => ({
+    Nom: p.nom,
+    Activité: p.activite ?? "",
+    Secteur: secteurByCle(p.secteur ?? "")?.label ?? p.secteur ?? "",
+    Ville: p.ville ?? "",
+    Région: p.region ?? "",
+    Score: p.score ?? "",
+    Constat_design: p.design ?? "",
+    Ancienneté: p.anciennete ?? "",
+    Points_faibles: p.pointsFaibles ?? "",
+    Email: p.email ?? "",
+    Téléphone: p.telephone ?? "",
+    Site: p.site ?? "",
+    Campagne: p.campagne ?? "",
+    Statut: p.statut,
+    Contacté_le: iso(p.contacteLe),
+    Nb_relances: p.nbRelances,
+    Relance_faite_le: iso(p.relanceFaiteLe),
+    A_répondu: p.reponduLe ? "Oui" : "Non",
+    Répondu_le: iso(p.reponduLe),
+    Accroche_générée_email: p.accrocheEmail ?? "",
+    Message_envoyé: p.messageEnvoye ?? "",
+  }));
+
+  // Papa.unparse gère l'échappement (guillemets, retours à la ligne dans les
+  // messages). BOM pour qu'Excel lise correctement les accents.
+  const csv = "﻿" + Papa.unparse(rows);
+  const filename = `prospection-${scope}-${iso(new Date())}.csv`;
+  return { ok: true, csv, filename, count: prospects.length };
 }
 
 // Purge les prospects non audités et non convertis (nettoyage d'anciennes collectes).

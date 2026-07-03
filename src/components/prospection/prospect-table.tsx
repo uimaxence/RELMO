@@ -17,6 +17,7 @@ import {
   ChevronRight,
   Archive,
   RotateCcw,
+  MessageSquare,
   Search as SearchIcon,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -63,6 +64,7 @@ import {
   changerStatutProspect,
   marquerContacte,
   marquerRelanceFaite,
+  marquerReponse,
   annulerProspect,
 } from "@/app/actions/prospection";
 
@@ -91,6 +93,7 @@ export type ProspectRow = {
   relanceLeFr: string | null;
   relanceDue: boolean;
   nbRelances: number;
+  reponduLeFr: string | null;
 };
 
 function initiales(nom: string): string {
@@ -331,7 +334,11 @@ function StatutTags({ p }: { p: ProspectRow }) {
           <Mail className="size-3" /> Mail envoyé
         </Badge>
       ) : null}
-      {p.relanceDue ? (
+      {p.reponduLeFr ? (
+        <Badge className="gap-1 border-positive-ink/30 bg-positive-bg font-normal text-positive-ink">
+          <MessageSquare className="size-3" /> Répondu
+        </Badge>
+      ) : p.relanceDue ? (
         <Badge className="gap-1 border-warning-ink/30 bg-warning-bg font-normal text-warning-ink">
           <BellRing className="size-3" /> Relance
         </Badge>
@@ -483,16 +490,41 @@ function ProspectSheet({
                       <>relance le {p.relanceLeFr}</>
                     )}
                   </p>
-                  {p.relanceDue ? (
+                  <p className="text-xs">
+                    {p.reponduLeFr ? (
+                      <span className="font-medium text-positive-ink">
+                        A répondu le {p.reponduLeFr}
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground">Pas encore de réponse.</span>
+                    )}
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {p.relanceDue ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => run(() => marquerRelanceFaite(p.id), "Relance enregistrée.")}
+                        disabled={pending}
+                      >
+                        {pending ? <Loader2 className="animate-spin" /> : <BellRing />} Relance faite
+                      </Button>
+                    ) : null}
                     <Button
                       size="sm"
-                      variant="outline"
-                      onClick={() => run(() => marquerRelanceFaite(p.id), "Relance enregistrée.")}
+                      variant={p.reponduLeFr ? "ghost" : "outline"}
+                      onClick={() =>
+                        run(
+                          () => marquerReponse(p.id),
+                          p.reponduLeFr ? "Réponse retirée." : "Réponse enregistrée.",
+                        )
+                      }
                       disabled={pending}
                     >
-                      {pending ? <Loader2 className="animate-spin" /> : <BellRing />} Relance faite
+                      {pending ? <Loader2 className="animate-spin" /> : <MessageSquare />}
+                      {p.reponduLeFr ? "Retirer la réponse" : "Réponse reçue"}
                     </Button>
-                  ) : null}
+                  </div>
                   {p.messageEnvoye ? (
                     <details className="text-xs">
                       <summary className="cursor-pointer text-muted-foreground">Message envoyé</summary>

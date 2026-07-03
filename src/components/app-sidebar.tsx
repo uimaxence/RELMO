@@ -24,10 +24,10 @@ export function AppSidebar() {
     <Sidebar>
       <SidebarHeader className="px-3 py-4">
         <Link href="/" className="flex items-center gap-2">
-          <span className="flex size-7 items-center justify-center rounded-md bg-brand text-brand-foreground text-sm font-bold">
+          <span className="flex size-7 items-center justify-center rounded-md bg-accent-brand text-white text-sm font-bold">
             R
           </span>
-          <span className="font-semibold tracking-tight">Relmo</span>
+          <span className="font-heading font-semibold tracking-tight">Relmo</span>
         </Link>
       </SidebarHeader>
       <SidebarContent>
@@ -40,7 +40,7 @@ export function AppSidebar() {
                   <SidebarMenuButton
                     asChild
                     isActive={active?.href === item.href}
-                    className="data-[active=true]:text-brand data-[active=true]:font-medium"
+                    className="data-[active=true]:text-accent-brand data-[active=true]:font-medium"
                   >
                     <Link href={item.href}>
                       <item.icon />

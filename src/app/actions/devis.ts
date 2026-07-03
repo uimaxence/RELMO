@@ -60,6 +60,7 @@ export async function convertDevisToContrat(id: string): Promise<FormState> {
         libelle: devis.libelle,
         montantMensuel: devis.montantMensuelPropose,
         montantCreation: devis.montantCreation,
+        formule: devis.formule,
         statut: "actif",
         devisId: devis.id,
       },

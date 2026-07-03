@@ -9,7 +9,7 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-geist-sans);
+  --font-heading: var(--font-space-grotesk), var(--font-geist-sans);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -37,6 +37,8 @@
   --color-primary: var(--primary);
   --color-brand: var(--brand);
   --color-brand-foreground: var(--brand-foreground);
+  --color-accent-brand: var(--accent-brand);
+  --color-accent-brand-bg: var(--accent-brand-bg);
   /* Vocabulaire DESIGN_SYSTEM.md (alias sémantiques) */
   --color-canvas: var(--background);
   --color-surface: var(--card);
@@ -74,8 +76,13 @@
      teal #2A9D8F = touche de marque (mark, focus, 1re série de graphe). */
   --brand: #2a9d8f;
   --brand-foreground: #ffffff;
+  /* Accent terracotta (brand book) — emphase interactive restreinte : focus,
+     onglet de nav actif, prix de la grille, 1-2 chiffres-clés. Jamais un bouton
+     primaire (l'encre reste l'action). */
+  --accent-brand: #e89263;
+  --accent-brand-bg: #fbeee4;
 
-  --background: #f4f4f1; /* canvas */
+  --background: #fefef8; /* canvas — papier chaud (brand book) */
   --foreground: #1a1a17; /* ink */
   --card: #ffffff; /* surface */
   --card-foreground: #1a1a17;
@@ -106,26 +113,28 @@
   --neutral-ink: #6e6e66;
   --neutral-bg: #efefea;
   --input: #e7e7e1;
-  --ring: #2a9d8f; /* brand */
-  --chart-1: #2a9d8f; /* brand */
+  --ring: #e89263; /* accent terracotta */
+  --chart-1: #2a9d8f; /* brand teal (réservé aux graphes) */
   --chart-2: #1a1a17;
   --chart-3: #6b6b63;
   --chart-4: #a2a299;
   --chart-5: #dad9d2;
   --radius: 0.65rem;
-  --sidebar: #f4f4f1;
+  --sidebar: #fefef8;
   --sidebar-foreground: #1a1a17;
   --sidebar-primary: #1a1a17;
   --sidebar-primary-foreground: #faf9f6;
   --sidebar-accent: #ffffff; /* item actif/hover = surface */
   --sidebar-accent-foreground: #1a1a17;
   --sidebar-border: #e7e7e1;
-  --sidebar-ring: #2a9d8f; /* brand */
+  --sidebar-ring: #e89263; /* accent terracotta */
 }
 
 .dark {
   --brand: #3db6a6; /* teal plus clair en dark */
   --brand-foreground: #0f1715;
+  --accent-brand: #f0a878; /* terracotta plus clair en dark */
+  --accent-brand-bg: oklch(0.7 0.11 45 / 0.16);
 
   --background: #1a1916; /* warm near-black */
   --foreground: #f4f4f1;
@@ -158,8 +167,8 @@
   --neutral-ink: #a2a299;
   --neutral-bg: oklch(1 0 0 / 0.07);
   --input: oklch(1 0 0 / 15%);
-  --ring: #3db6a6; /* brand */
-  --chart-1: #3db6a6; /* brand */
+  --ring: #f0a878; /* accent terracotta */
+  --chart-1: #3db6a6; /* brand teal (réservé aux graphes) */
   --chart-2: #f4f4f1;
   --chart-3: #a2a299;
   --chart-4: #6b6b63;
@@ -171,7 +180,7 @@
   --sidebar-accent: #232220;
   --sidebar-accent-foreground: #f4f4f1;
   --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: #3db6a6; /* brand */
+  --sidebar-ring: #f0a878; /* accent terracotta */
 }
 
 @layer base {

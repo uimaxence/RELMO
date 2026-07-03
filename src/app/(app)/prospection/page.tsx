@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Target, Users, Euro, BellRing, Flame, Sparkles, ChevronRight, Search } from "lucide-react";
+import { Target, Users, Euro, BellRing, Flame, Sparkles, ChevronRight, Search, Send, MessageSquare } from "lucide-react";
 
 import { prisma } from "@/lib/db";
 import { PageHeader } from "@/components/page-header";
@@ -17,8 +17,14 @@ import {
   actionAccrochesProspection,
 } from "@/app/actions/ai";
 import { ensureObjectif, computeObjectif } from "@/lib/objectif";
+import { ensureReglage } from "@/lib/wishlist";
 import { euros, dateFr } from "@/lib/format";
-import { labelOf, SOURCES } from "@/lib/constants";
+import {
+  labelOf,
+  SOURCES,
+  PROSPECTION_OBJECTIF_MENSUEL,
+  PROSPECTION_TAUX_REPONSE_MIN,
+} from "@/lib/constants";
 
 export const dynamic = "force-dynamic";
 
@@ -46,6 +52,8 @@ export default async function ProspectionPage() {
     59,
   );
 
+  const debutMois = new Date(now.getFullYear(), now.getMonth(), 1);
+
   const [
     prospects,
     relances,
@@ -56,6 +64,12 @@ export default async function ProspectionPage() {
     sites,
     prospectsDecouverts,
     prospectsChauds,
+    reglage,
+    premiersContactsMois,
+    relancesFaitesMois,
+    contactesTotal,
+    reponduTotal,
+    prospectsRelanceDue,
   ] = await Promise.all([
       prisma.client.findMany({
         where: { statut: "prospect" },
@@ -94,6 +108,16 @@ export default async function ProspectionPage() {
       prisma.prospect.count({
         where: { statut: { in: ["nouveau", "a_contacter"] }, score: { gte: 65 } },
       }),
+      ensureReglage(),
+      // Machine de prospection (brief §2) : volume du mois = 1ers contacts + relances,
+      // taux de réponse = répondus / contactés (tous les temps).
+      prisma.prospect.count({ where: { contacteLe: { gte: debutMois } } }),
+      prisma.prospect.count({ where: { relanceFaiteLe: { gte: debutMois } } }),
+      prisma.prospect.count({ where: { contacteLe: { not: null } } }),
+      prisma.prospect.count({ where: { reponduLe: { not: null } } }),
+      prisma.prospect.count({
+        where: { statut: "contacte", relanceLe: { lte: now } },
+      }),
     ]);
 
   const siteOpts = sites.map((s) => ({
@@ -105,6 +129,21 @@ export default async function ProspectionPage() {
   const potentiel = potentielAgg._sum.montantMensuelPropose ?? 0;
   const mrr = mrrAgg._sum.montantMensuel ?? 0;
   const c = computeObjectif(objectif, mrr);
+
+  const paliers = {
+    palierEssentiel: reglage.palierEssentiel,
+    palierPro: reglage.palierPro,
+    tarifSuivi: reglage.tarifSuivi,
+  };
+
+  const envoisMois = premiersContactsMois + relancesFaitesMois;
+  const tauxReponse =
+    contactesTotal > 0 ? Math.round((reponduTotal / contactesTotal) * 100) : null;
+  // Garde-fou brief §2 : sous 2% après ≥150 envois → ajuster accroche/cible.
+  const alerteReponse =
+    contactesTotal >= 150 &&
+    tauxReponse !== null &&
+    tauxReponse < PROSPECTION_TAUX_REPONSE_MIN;
 
   // Tri : les plus froids d'abord (jamais contacté en tête).
   const rows = prospects
@@ -153,7 +192,7 @@ export default async function ProspectionPage() {
             ) : null}
           </Link>
         </Button>
-        <DevisFormDialog clients={clients} sites={siteOpts} />
+        <DevisFormDialog clients={clients} sites={siteOpts} paliers={paliers} />
       </PageHeader>
 
       {/* Bandeau : les prospects découverts vivent sur /prospection/recherche.
@@ -188,6 +227,43 @@ export default async function ProspectionPage() {
           />
         ))}
       </div>
+
+      {/* Machine de prospection (brief §2) : volume + taux de réponse. */}
+      <section className="space-y-2">
+        <h2 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+          Machine de prospection · ce mois
+        </h2>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <KpiCard
+            label="Envois ce mois"
+            value={`${envoisMois} / ${PROSPECTION_OBJECTIF_MENSUEL}`}
+            icon={Send}
+            hint={`${premiersContactsMois} 1ers contacts · ${relancesFaitesMois} relances`}
+          />
+          <KpiCard
+            label="Taux de réponse"
+            value={tauxReponse !== null ? `${tauxReponse}%` : "—"}
+            icon={MessageSquare}
+            hint={`${reponduTotal} / ${contactesTotal} contactés`}
+          />
+          <KpiCard
+            label="Relances à faire"
+            value={prospectsRelanceDue}
+            icon={BellRing}
+            hint="Prospects froids à relancer"
+          />
+        </div>
+        {alerteReponse ? (
+          <div className="flex flex-wrap items-center gap-2 rounded-lg border border-warning-ink/30 bg-warning-bg px-4 py-2.5 text-sm text-warning-ink">
+            <Flame className="size-4 shrink-0" />
+            <span>
+              Taux de réponse sous {PROSPECTION_TAUX_REPONSE_MIN}% après{" "}
+              {contactesTotal} envois — ajuste l&apos;accroche ou la cible, sans
+              abandonner le canal.
+            </span>
+          </div>
+        ) : null}
+      </section>
 
       {/* Nudge calibré sur l'écart à l'objectif. */}
       <div className="flex flex-wrap items-center gap-3 rounded-xl bg-muted px-4 py-3">
@@ -340,6 +416,7 @@ export default async function ProspectionPage() {
                         clients={clients}
                         sites={siteOpts}
                         defaultClientId={p.id}
+                        paliers={paliers}
                         trigger={
                           <Button variant="ghost" size="sm">
                             Devis

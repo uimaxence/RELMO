@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/page-header";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { RechercheToolbar } from "@/components/prospection/recherche-toolbar";
 import { ProspectTable, type ProspectRow } from "@/components/prospection/prospect-table";
+import { ExportProspectsButton } from "@/components/prospection/export-prospects-button";
 import { placesConfigured } from "@/app/actions/prospection";
 import { dateFr } from "@/lib/format";
 
@@ -69,6 +70,7 @@ export default async function RechercheProspectsPage() {
       relanceLeFr: p.relanceLe ? dateFr(p.relanceLe) : null,
       relanceDue: relanceDue(p),
       nbRelances: p.nbRelances,
+      reponduLeFr: p.reponduLe ? dateFr(p.reponduLe) : null,
     }));
 
   const kpis = [
@@ -89,6 +91,7 @@ export default async function RechercheProspectsPage() {
         title="Recherche de prospects"
         description="Trouver, auditer et scorer des entreprises locales à démarcher, puis les convertir en clients."
       >
+        <ExportProspectsButton />
         <Link
           href="/prospection"
           className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"

@@ -32,6 +32,20 @@ export const CLIENT_STATUTS: Option[] = [
   { value: "ancien", label: "Ancien" },
 ];
 
+// Formules de la grille publique (cf. brief §4). Sert à tagger un devis/contrat
+// et à suivre « signé à 700 / 850 / 1000 » (paliers). Les prix vivent dans Reglage
+// (palierEssentiel / palierPro / tarifSuivi) car ils montent au fil des références.
+export const FORMULES: Option[] = [
+  { value: "essentiel", label: "Essentiel" },
+  { value: "pro", label: "Pro" },
+  { value: "suivi", label: "Suivi & SEO" },
+  { value: "sur_mesure", label: "Sur-mesure" },
+];
+
+// Prospection sortante — repères du brief §2 (machine de volume).
+export const PROSPECTION_OBJECTIF_MENSUEL = 130; // envois/mois visés (~120-150)
+export const PROSPECTION_TAUX_REPONSE_MIN = 2; // % en-dessous duquel ajuster accroche/cible
+
 // Ordre = progression du pipeline (F10).
 export const DEVIS_STATUTS: Option[] = [
   { value: "brouillon", label: "Brouillon" },

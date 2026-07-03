@@ -74,6 +74,10 @@ export const devisSchema = z.object({
   libelle: z.string().trim().min(1, requis),
   montantCreation: montant("Montant de création invalide."),
   montantMensuelPropose: montant("Montant mensuel invalide."),
+  formule: z.preprocess(
+    (v) => (v === "" || v === "none" || v === null ? undefined : v),
+    z.enum(["essentiel", "pro", "suivi", "sur_mesure"]).optional(),
+  ),
   statut: z.enum([
     "brouillon",
     "envoye",
@@ -131,6 +135,13 @@ export const reglageSchema = z.object({
     .number({ message: "Pourcentage invalide." })
     .min(1, "Au moins 1 %.")
     .max(100, "Au plus 100 %."),
+});
+
+// Paliers de prix courants (grille publique — cf. brief §4).
+export const paliersSchema = z.object({
+  palierEssentiel: montant("Prix Essentiel invalide."),
+  palierPro: montant("Prix Pro invalide."),
+  tarifSuivi: montant("Tarif Suivi invalide."),
 });
 
 export const objectifSchema = z.object({

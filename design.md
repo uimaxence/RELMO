@@ -16,9 +16,16 @@ DESIGN_SYSTEM.md est exposée de **deux** façons interchangeables :
 - **Noms de la spec** (pour l'UI custom) : `bg-canvas`, `text-ink`,
   `text-ink-soft`, `text-ink-faint`, `border-border-strong`, et les statuts
   `bg-positive-bg text-positive-ink` (+ `warning` / `negative` / `neutral`).
-- **Marque** : `bg-brand` / `text-brand` (teal `#2A9D8F`). Accent **restreint** :
-  mark sidebar, **onglet de nav actif** (`data-[active=true]:text-brand`), focus
-  (`--ring`), 1ʳᵉ série de graphe (`--chart-1`). Jamais sur un bouton primaire.
+- **Marque** : `bg-brand` / `text-brand` (teal `#2A9D8F`) — désormais **réservé aux
+  graphes** (`--chart-1`) et usages internes.
+- **Accent terracotta** (brand book, `#E89263`) : `bg-accent-brand` / `text-accent-brand`
+  / `bg-accent-brand-bg`. Emphase **restreinte** : focus (`--ring`), **onglet de nav
+  actif** (`data-[active=true]:text-accent-brand`), mark sidebar, prix de la grille
+  tarifaire, 1-2 chiffres-clés. **Jamais** sur un bouton primaire (l'encre reste
+  l'action). Pas de stickers.
+- **Titres** : police `font-heading` = **Space Grotesk** (tracking serré). Appliquée
+  à `PageHeader` et à tous les `CardTitle`. Le corps reste Geist, les chiffres `font-mono`.
+- **Canvas** : papier chaud `#FEFEF8` (`--background`).
 
 ➡️ **Jamais de hex en dur.** Toujours une classe token. Le dark mode (chaud) suit.
 

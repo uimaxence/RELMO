@@ -1,4 +1,4 @@
-import { BarChart3 } from "lucide-react";
+import { BarChart3, Send, MessageSquare, BellRing } from "lucide-react";
 
 import { prisma } from "@/lib/db";
 import { PageHeader } from "@/components/page-header";
@@ -18,8 +18,14 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { KpiCard } from "@/components/dashboard/kpi-card";
+import { ensureReglage } from "@/lib/wishlist";
 import { euros } from "@/lib/format";
-import { labelOf, SOURCES } from "@/lib/constants";
+import {
+  labelOf,
+  SOURCES,
+  FORMULES,
+  PROSPECTION_OBJECTIF_MENSUEL,
+} from "@/lib/constants";
 
 export const dynamic = "force-dynamic";
 
@@ -38,6 +44,7 @@ function emptyAgg(): Agg {
 type DevisLite = {
   statut: string;
   montantMensuelPropose: number;
+  montantCreation?: number;
 };
 
 function accumulate(agg: Agg, d: DevisLite) {
@@ -68,17 +75,30 @@ function rowsFrom(map: Map<string, Agg>, label: (key: string) => string) {
 }
 
 export default async function AcquisitionPage() {
-  const devis = await prisma.devis.findMany({
-    select: {
-      statut: true,
-      montantMensuelPropose: true,
-      motifPerte: true,
-      client: { select: { source: true, secteur: true } },
-    },
-  });
+  const now = new Date();
+  const debutMois = new Date(now.getFullYear(), now.getMonth(), 1);
+
+  const [devis, reglage, premiersContactsMois, relancesFaitesMois, contactesTotal, reponduTotal] =
+    await Promise.all([
+      prisma.devis.findMany({
+        select: {
+          statut: true,
+          montantMensuelPropose: true,
+          formule: true,
+          motifPerte: true,
+          client: { select: { source: true, secteur: true } },
+        },
+      }),
+      ensureReglage(),
+      prisma.prospect.count({ where: { contacteLe: { gte: debutMois } } }),
+      prisma.prospect.count({ where: { relanceFaiteLe: { gte: debutMois } } }),
+      prisma.prospect.count({ where: { contacteLe: { not: null } } }),
+      prisma.prospect.count({ where: { reponduLe: { not: null } } }),
+    ]);
 
   const parSource = new Map<string, Agg>();
   const parNiche = new Map<string, Agg>();
+  const parFormule = new Map<string, Agg>();
   const motifs = new Map<string, number>();
   const global = emptyAgg();
 
@@ -93,6 +113,10 @@ export default async function AcquisitionPage() {
     if (!parNiche.has(niche)) parNiche.set(niche, emptyAgg());
     accumulate(parNiche.get(niche)!, d);
 
+    const formule = d.formule ?? "non_precise";
+    if (!parFormule.has(formule)) parFormule.set(formule, emptyAgg());
+    accumulate(parFormule.get(formule)!, d);
+
     if ((d.statut === "refuse" || d.statut === "expire") && d.motifPerte?.trim()) {
       const m = d.motifPerte.trim();
       motifs.set(m, (motifs.get(m) ?? 0) + 1);
@@ -105,7 +129,14 @@ export default async function AcquisitionPage() {
   const nicheRows = rowsFrom(parNiche, (k) =>
     k === "non_precise" ? "Non précisé" : k,
   );
+  const formuleRows = rowsFrom(parFormule, (k) =>
+    k === "non_precise" ? "Non précisé" : labelOf(FORMULES, k),
+  );
   const motifRows = [...motifs.entries()].sort((a, b) => b[1] - a[1]);
+
+  const envoisMois = premiersContactsMois + relancesFaitesMois;
+  const tauxReponse =
+    contactesTotal > 0 ? Math.round((reponduTotal / contactesTotal) * 100) : null;
 
   const decidedGlobal = global.signes + global.perdus;
   const tauxGlobal =
@@ -128,7 +159,7 @@ export default async function AcquisitionPage() {
     {
       label: "Ticket moyen signé",
       value: ticketGlobal > 0 ? `${euros(ticketGlobal)}/mois` : "—",
-      hint: "Vise ~120 € (palier)",
+      hint: `Suivi cible ${euros(reglage.tarifSuivi)}/mois`,
     },
   ];
 
@@ -175,6 +206,33 @@ export default async function AcquisitionPage() {
         description="Où se signent les devis : par canal et par niche, pour concentrer l'effort là où ça convertit."
       />
 
+      {/* Machine de prospection (brief §2) : volume + réponse. */}
+      <section className="space-y-2">
+        <h2 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+          Prospection sortante · ce mois
+        </h2>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <KpiCard
+            label="Envois ce mois"
+            value={`${envoisMois} / ${PROSPECTION_OBJECTIF_MENSUEL}`}
+            icon={Send}
+            hint={`${premiersContactsMois} 1ers contacts · ${relancesFaitesMois} relances`}
+          />
+          <KpiCard
+            label="Taux de réponse"
+            value={tauxReponse !== null ? `${tauxReponse}%` : "—"}
+            icon={MessageSquare}
+            hint={`${reponduTotal} / ${contactesTotal} contactés`}
+          />
+          <KpiCard
+            label="Contactés (total)"
+            value={contactesTotal}
+            icon={BellRing}
+            hint="Prospects entrés dans le pipeline"
+          />
+        </div>
+      </section>
+
       {global.total === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center gap-3 py-12 text-center">
@@ -210,6 +268,16 @@ export default async function AcquisitionPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="px-0">{renderTable(nicheRows, "Niche")}</CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Par formule</CardTitle>
+              <CardDescription>
+                Ce qui se signe à quel palier — pour caler la montée des prix.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="px-0">{renderTable(formuleRows, "Formule")}</CardContent>
           </Card>
 
           {motifRows.length > 0 ? (

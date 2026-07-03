@@ -27,12 +27,19 @@ import { Field } from "@/components/forms/form-ui";
 import { createDevis, updateDevis } from "@/app/actions/devis";
 import { analyserPdfDevis } from "@/app/actions/devis-pdf";
 import { initialFormState, type FormState } from "@/lib/form";
-import { DEVIS_STATUTS } from "@/lib/constants";
+import { DEVIS_STATUTS, FORMULES } from "@/lib/constants";
 import { toDateInput } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 type ClientOpt = { id: string; nom: string };
 type SiteOpt = { id: string; nom: string; clientNom: string };
+
+// Paliers de prix courants (Reglage) → pré-remplissage à la sélection d'une formule.
+export type Paliers = {
+  palierEssentiel: number;
+  palierPro: number;
+  tarifSuivi: number;
+};
 
 type DevisLite = {
   id: string;
@@ -41,6 +48,7 @@ type DevisLite = {
   libelle: string;
   montantCreation: number;
   montantMensuelPropose: number;
+  formule?: string | null;
   statut: string;
   dateEnvoi: Date | string | null;
   dateRelance: Date | string | null;
@@ -54,12 +62,14 @@ export function DevisFormDialog({
   sites,
   devis,
   defaultClientId,
+  paliers,
   trigger,
 }: {
   clients: ClientOpt[];
   sites: SiteOpt[];
   devis?: DevisLite;
   defaultClientId?: string;
+  paliers?: Paliers;
   trigger?: React.ReactNode;
 }) {
   const editing = Boolean(devis);
@@ -72,7 +82,25 @@ export function DevisFormDialog({
     String(devis?.montantMensuelPropose ?? 0),
   );
   const [note, setNote] = useState(devis?.note ?? "");
+  const [formule, setFormule] = useState(devis?.formule ?? "none");
   const [pdfUrl, setPdfUrl] = useState(devis?.pdfUrl ?? "");
+
+  // Choix d'une formule → pré-remplit les montants depuis les paliers courants
+  // (éditable ensuite). Le Suivi est un abonnement seul (pas de création).
+  function choisirFormule(value: string) {
+    setFormule(value);
+    if (!paliers) return;
+    if (value === "essentiel") {
+      setCreation(String(paliers.palierEssentiel));
+      setMensuel("0");
+    } else if (value === "pro") {
+      setCreation(String(paliers.palierPro));
+      setMensuel("0");
+    } else if (value === "suivi") {
+      setCreation("0");
+      setMensuel(String(paliers.tarifSuivi));
+    }
+  }
 
   const [analyse, setAnalyse] = useState(false);
   const [dragging, setDragging] = useState(false);
@@ -241,6 +269,26 @@ export function DevisFormDialog({
               onChange={(e) => setLibelle(e.target.value)}
               placeholder="Ex. Site vitrine + suivi SEO"
             />
+          </Field>
+
+          <Field
+            label="Formule"
+            hint="Pré-remplit les montants au tarif courant (éditable) — sert à suivre les paliers."
+            error={state?.fieldErrors?.formule}
+          >
+            <Select name="formule" value={formule} onValueChange={choisirFormule}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Sur-mesure / non précisé" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Non précisé</SelectItem>
+                {FORMULES.map((f) => (
+                  <SelectItem key={f.value} value={f.value}>
+                    {f.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </Field>
 
           <div className="grid grid-cols-2 gap-4">
