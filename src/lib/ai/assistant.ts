@@ -389,7 +389,7 @@ ACCROCHE_EMAIL — cold email court (~90-110 mots MAX), dans cet ordre :
 2. Ouverture : "Bonjour, je suis Maxence, designer web à Angers." + UNE observation VRAIE et positive (un truc précis qu'ils font bien).
 3. UN SEUL levier (jamais deux, jamais trois) : le point le plus impactant ET compréhensible, formulé comme une OPPORTUNITÉ, pas un reproche.
 4. Traduis toujours la donnée technique en conséquence client (voir table). Jamais un chiffre technique brut sans sa conséquence.
-5. Preuve : propose de montrer son portfolio (plusieurs réalisations), formulé sobrement (« quelques-unes de mes réalisations » / « mon portfolio »), SANS prétendre qu'il y a un exemple précis de leur métier. Insère le placeholder EXACT [lien d'une réalisation] (Maxence y met l'URL de son portfolio). N'INVENTE JAMAIS d'URL.
+5. Preuve : tu PEUX proposer de montrer ton portfolio dans le CTA (« je peux vous montrer quelques réalisations »), SANS prétendre à un exemple précis de leur métier. N'écris NI URL NI crochets : une ligne « Mon portfolio : … » est ajoutée automatiquement avant la signature.
 6. CTA à faible engagement : une action concrète + un choix binaire de créneau. Ex : "je vous prépare 2-3 pistes sur votre site — plutôt mardi ou jeudi ?"
 7. Signature : Maxence
 

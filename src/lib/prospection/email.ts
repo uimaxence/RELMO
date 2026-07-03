@@ -46,10 +46,18 @@ export function construireEmail(
   let texte = corps;
   const lien = contenus.lienRealisation?.trim();
   if (lien) {
+    // Remplace le placeholder par l'URL là où l'IA l'a posé.
     texte = texte.split(PLACEHOLDER_LIEN).join(lien);
+  } else {
+    // Pas de lien configuré : on retire le jeton pour ne pas envoyer « [lien…] ».
+    texte = texte.split(PLACEHOLDER_LIEN).join("").replace(/[ \t]{2,}/g, " ");
   }
 
   const blocs = [texte.trim()];
+  // Garantit la présence du portfolio même si l'IA a omis le placeholder
+  // (adhérence irrégulière du modèle) : ligne dédiée avant la signature.
+  if (lien && !texte.includes(lien)) blocs.push(`Mon portfolio : ${lien}`);
+
   const signature = contenus.signatureEmail?.trim();
   if (signature) blocs.push(signature);
   const optOut = (contenus.optOutTexte?.trim() || DEFAUT_OPT_OUT).trim();
