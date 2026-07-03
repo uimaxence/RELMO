@@ -132,6 +132,13 @@ export const ENVIE_CATEGORIES: Option[] = [
   { value: "autre", label: "Autre" },
 ];
 
+// Canal du 1er contact d'un prospect (mail auto, ou DM manuel LinkedIn/Instagram).
+export const CANAUX_CONTACT: Option[] = [
+  { value: "email", label: "E-mail" },
+  { value: "linkedin", label: "LinkedIn" },
+  { value: "instagram", label: "Instagram" },
+];
+
 // Prospection sortante — suivi d'un prospect découvert (avant conversion client).
 export const PROSPECT_STATUTS: Option[] = [
   { value: "nouveau", label: "Nouveau" },

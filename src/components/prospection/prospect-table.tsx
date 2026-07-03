@@ -21,6 +21,7 @@ import {
   Inbox,
   Undo2,
   MailX,
+  MessageCircle,
   Search as SearchIcon,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -60,7 +61,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { labelOf, PROSPECT_STATUTS } from "@/lib/constants";
+import { labelOf, PROSPECT_STATUTS, CANAUX_CONTACT } from "@/lib/constants";
 import {
   auditerUnProspect,
   convertirEnClient,
@@ -93,6 +94,7 @@ export type ProspectRow = {
   note: string | null;
   statut: string;
   campagne: string | null;
+  canalContact: string | null;
   messageEnvoye: string | null;
   contacteLeFr: string | null;
   relanceLeFr: string | null;
@@ -354,6 +356,14 @@ export function ProspectTable({ prospects }: { prospects: ProspectRow[] }) {
   );
 }
 
+function CanalIcon({ canal }: { canal: string }) {
+  // lucide n'expose plus les icônes de marque : icône DM générique pour les
+  // messageries (LinkedIn/Instagram), enveloppe pour l'e-mail.
+  if (canal === "linkedin" || canal === "instagram")
+    return <MessageCircle className="size-3" />;
+  return <Mail className="size-3" />;
+}
+
 function StatutTags({ p }: { p: ProspectRow }) {
   return (
     <div className="flex flex-wrap items-center gap-1">
@@ -373,9 +383,13 @@ function StatutTags({ p }: { p: ProspectRow }) {
           <Inbox className="size-3" /> En file
         </Badge>
       ) : null}
-      {p.messageEnvoye ? (
+      {p.canalContact ? (
         <Badge variant="outline" className="gap-1 font-normal text-muted-foreground">
-          <Mail className="size-3" /> Mail envoyé
+          <CanalIcon canal={p.canalContact} /> {labelOf(CANAUX_CONTACT, p.canalContact)}
+        </Badge>
+      ) : p.messageEnvoye ? (
+        <Badge variant="outline" className="gap-1 font-normal text-muted-foreground">
+          <Mail className="size-3" /> Contacté
         </Badge>
       ) : null}
       {p.reponduLeFr ? (
@@ -623,9 +637,9 @@ function ProspectSheet({
                     variant="outline"
                     onClick={() => setMailOpen(true)}
                     disabled={pending}
-                    title="J'ai envoyé le mail moi-même (journalisation)"
+                    title="Je l'ai contacté moi-même (mail, LinkedIn ou Instagram)"
                   >
-                    <Send /> Déjà envoyé
+                    <Send /> J&apos;ai contacté
                   </Button>
                 ) : null}
                 {p.statut !== "converti" ? (
@@ -669,12 +683,13 @@ function ProspectSheet({
               </div>
             </div>
 
-            <MailEnvoyeDialog
+            <ContactManuelDialog
               open={mailOpen}
               onOpenChange={setMailOpen}
               prospectId={p.id}
               nom={p.nom}
-              defaultMessage={p.accrocheEmail ?? ""}
+              accrocheEmail={p.accrocheEmail ?? ""}
+              accrocheLinkedin={p.accrocheLinkedin ?? ""}
             />
             <AnnulerDialog
               open={annulerOpen}
@@ -690,27 +705,40 @@ function ProspectSheet({
   );
 }
 
-function MailEnvoyeDialog({
+function ContactManuelDialog({
   open,
   onOpenChange,
   prospectId,
   nom,
-  defaultMessage,
+  accrocheEmail,
+  accrocheLinkedin,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
   prospectId: string;
   nom: string;
-  defaultMessage: string;
+  accrocheEmail: string;
+  accrocheLinkedin: string;
 }) {
-  const [message, setMessage] = useState(defaultMessage);
+  // Message par défaut selon le canal : accroche e-mail pour l'e-mail, accroche
+  // courte (LinkedIn) pour les DM LinkedIn/Instagram.
+  const defautPour = (c: string) =>
+    c === "email" ? accrocheEmail : accrocheLinkedin || accrocheEmail;
+
+  const [canal, setCanal] = useState("email");
+  const [message, setMessage] = useState(accrocheEmail);
   const [pending, start] = useTransition();
+
+  function changerCanal(c: string) {
+    setCanal(c);
+    setMessage(defautPour(c));
+  }
 
   function confirmer() {
     start(async () => {
-      const res = await marquerContacte(prospectId, message);
+      const res = await marquerContacte(prospectId, message, canal);
       if (res.ok) {
-        toast.success("Contact enregistré — relance prévue dans 5 jours.");
+        toast.success("Contact enregistré, relance prévue dans 5 jours.");
         onOpenChange(false);
       } else {
         toast.error(res.error ?? "Impossible d'enregistrer.");
@@ -722,13 +750,31 @@ function MailEnvoyeDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Message envoyé à {nom}</DialogTitle>
+          <DialogTitle>Marquer {nom} comme contacté</DialogTitle>
           <DialogDescription>
-            Confirme (ou colle) le message que tu as réellement envoyé. Il est enregistré tel
-            quel — DeepSeek s&apos;en sert pour apprendre ton style et personnaliser les
-            prochaines accroches.
+            Par quel canal, et avec quel message ? Il est enregistré tel quel :
+            DeepSeek s&apos;en sert pour apprendre ton style.
           </DialogDescription>
         </DialogHeader>
+
+        {/* Choix du canal */}
+        <div className="flex gap-1 rounded-lg bg-muted p-1">
+          {CANAUX_CONTACT.map((c) => (
+            <button
+              key={c.value}
+              type="button"
+              onClick={() => changerCanal(c.value)}
+              className={`flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                canal === c.value
+                  ? "bg-card text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <CanalIcon canal={c.value} /> {c.label}
+            </button>
+          ))}
+        </div>
+
         <Textarea
           value={message}
           onChange={(e) => setMessage(e.target.value)}
@@ -737,7 +783,7 @@ function MailEnvoyeDialog({
         />
         <DialogFooter>
           <Button onClick={confirmer} disabled={pending}>
-            {pending ? <Loader2 className="animate-spin" /> : <Send />} Confirmer l&apos;envoi
+            {pending ? <Loader2 className="animate-spin" /> : <Send />} Enregistrer le contact
           </Button>
         </DialogFooter>
       </DialogContent>

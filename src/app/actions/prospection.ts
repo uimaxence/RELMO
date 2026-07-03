@@ -381,6 +381,7 @@ export async function changerStatutProspect(
 export async function marquerContacte(
   id: string,
   message?: string,
+  canal: string = "email",
 ): Promise<{ ok: boolean; error?: string }> {
   const now = new Date();
   const relance = new Date(now.getTime() + PROSPECT_RELANCE_JOURS * 86_400_000);
@@ -388,6 +389,7 @@ export async function marquerContacte(
     where: { id },
     data: {
       statut: "contacte",
+      canalContact: canal,
       contacteLe: now,
       relanceLe: relance,
       relanceFaiteLe: null,
@@ -395,6 +397,7 @@ export async function marquerContacte(
     },
   });
   revalidatePath(PAGE);
+  revalidatePath("/prospection/campagne");
   return { ok: true };
 }
 
@@ -483,6 +486,7 @@ export async function envoyerMailProspect(
     where: { id },
     data: {
       statut: "contacte",
+      canalContact: "email",
       contacteLe: now,
       relanceLe: relance,
       relanceFaiteLe: null,
@@ -572,6 +576,7 @@ export async function exporterProspectionCsv(
     Site: p.site ?? "",
     Campagne: p.campagne ?? "",
     Statut: p.statut,
+    Canal: p.canalContact ?? "",
     Contacté_le: iso(p.contacteLe),
     Nb_relances: p.nbRelances,
     Relance_faite_le: iso(p.relanceFaiteLe),

@@ -69,6 +69,7 @@ export default async function RechercheProspectsPage() {
       note: p.note,
       statut: p.statut,
       campagne: p.campagne,
+      canalContact: p.canalContact,
       messageEnvoye: p.messageEnvoye,
       contacteLeFr: p.contacteLe ? dateFr(p.contacteLe) : null,
       relanceLeFr: p.relanceLe ? dateFr(p.relanceLe) : null,

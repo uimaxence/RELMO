@@ -315,8 +315,9 @@ model Prospect {
 
   // Suivi commercial / pipeline de prospection
   statut         String    @default("nouveau") // nouveau | a_contacter | contacte | ecarte | converti
+  canalContact   String? // email | linkedin | instagram — par quel canal le 1er contact a été fait
   messageEnvoye  String? // le message réellement envoyé (édité par l'user) → apprend son style
-  contacteLe     DateTime? // 1er message envoyé (mail/LinkedIn)
+  contacteLe     DateTime? // 1er message envoyé (mail/LinkedIn/DM)
   relanceLe      DateTime? // prochaine relance prévue (contacteLe + 5 j, puis reconduite)
   relanceFaiteLe DateTime? // dernière relance effectuée
   reponduLe      DateTime? // 1re réponse reçue (dénominateur du taux de réponse — cf. brief §2)
