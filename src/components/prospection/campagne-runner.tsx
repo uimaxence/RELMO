@@ -134,8 +134,8 @@ export function CampagneRunner({
   if (rows.length === 0) {
     return (
       <Card className="py-10 text-center text-sm text-muted-foreground">
-        Aucun prospect prêt à contacter. Audite des prospects (accroche générée) et
-        renseigne leur email pour lancer une campagne.
+        File d&apos;envoi vide. Depuis la recherche de prospects, ouvre une fiche
+        audité, renseigne l&apos;e-mail puis « Mettre en file d&apos;envoi ».
       </Card>
     );
   }

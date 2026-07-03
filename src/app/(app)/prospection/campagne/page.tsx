@@ -18,10 +18,10 @@ export const dynamic = "force-dynamic";
 export default async function CampagnePage() {
   const [reglage, prospects] = await Promise.all([
     ensureReglage(),
-    // Éligibles : audités (accroche prête) et pas encore contactés/écartés/convertis.
+    // File d'envoi : prospects mis en file (statut « à contacter ») avec accroche prête.
     prisma.prospect.findMany({
       where: {
-        statut: { in: ["nouveau", "a_contacter"] },
+        statut: "a_contacter",
         statutAudit: { in: ["ok", "aucun_site"] },
         accrocheEmail: { not: null },
       },
@@ -45,8 +45,8 @@ export default async function CampagnePage() {
   return (
     <div className="space-y-5">
       <PageHeader
-        title="Campagne de prospection"
-        description="Renseigne les e-mails, vérifie chaque message, puis envoie tout depuis ta boîte."
+        title="File d'envoi"
+        description="Les prospects mis en file d'envoi. Vérifie chaque message, puis envoie tout depuis ta boîte."
       >
         <Link
           href="/prospection/recherche"

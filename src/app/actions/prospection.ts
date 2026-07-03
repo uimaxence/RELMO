@@ -372,6 +372,7 @@ export async function changerStatutProspect(
 ): Promise<void> {
   await prisma.prospect.update({ where: { id }, data: { statut } });
   revalidatePath(PAGE);
+  revalidatePath("/prospection/campagne");
 }
 
 // « Mail envoyé » : entre dans le pipeline. Enregistre le message RÉELLEMENT

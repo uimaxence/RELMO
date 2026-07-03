@@ -18,6 +18,8 @@ import {
   Archive,
   RotateCcw,
   MessageSquare,
+  Inbox,
+  Undo2,
   Search as SearchIcon,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -65,8 +67,10 @@ import {
   marquerContacte,
   marquerRelanceFaite,
   marquerReponse,
+  updateEmailProspect,
   annulerProspect,
 } from "@/app/actions/prospection";
+import { emailValide } from "@/lib/prospection/email";
 
 export type ProspectRow = {
   id: string;
@@ -133,37 +137,61 @@ function ScorePill({ score, big = false }: { score: number; big?: boolean }) {
   );
 }
 
-// E-mail : clic = copie dans le presse-papier (pas d'ouverture de client mail).
-function CopyEmail({ email }: { email: string }) {
-  const [done, setDone] = useState(false);
-  async function copy(e: React.MouseEvent) {
-    e.stopPropagation();
-    try {
-      await navigator.clipboard.writeText(email);
-      setDone(true);
-      toast.success("E-mail copié.");
-      setTimeout(() => setDone(false), 1500);
-    } catch {
-      toast.error("Copie impossible.");
-    }
+// E-mail éditable en ligne (saisie/correction de l'adresse avant la file d'envoi).
+function EmailInline({ id, email }: { id: string; email: string | null }) {
+  const [val, setVal] = useState(email ?? "");
+  const [saved, setSaved] = useState(false);
+  const [pending, start] = useTransition();
+
+  function save() {
+    const clean = val.trim();
+    if (clean === (email ?? "")) return;
+    start(async () => {
+      const res = await updateEmailProspect(id, clean);
+      if (res.ok) {
+        toast.success("E-mail enregistré.");
+        setSaved(true);
+        setTimeout(() => setSaved(false), 1500);
+      } else {
+        toast.error(res.error ?? "E-mail invalide.");
+      }
+    });
   }
+
+  const invalide = val.trim() !== "" && !emailValide(val);
   return (
-    <button
-      type="button"
-      onClick={copy}
-      className="inline-flex items-center gap-1 rounded-md hover:text-foreground hover:underline"
-      title="Copier l'e-mail"
-    >
-      {done ? <Check className="size-3 text-positive-ink" /> : <Mail className="size-3" />} {email}
-    </button>
+    <span className="inline-flex items-center gap-1">
+      <Mail className="size-3 text-muted-foreground" />
+      <input
+        value={val}
+        onChange={(e) => setVal(e.target.value)}
+        onBlur={save}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            (e.target as HTMLInputElement).blur();
+          }
+        }}
+        placeholder="ajouter un e-mail"
+        className={`w-44 border-b bg-transparent pb-0.5 text-xs outline-none focus:border-foreground ${
+          invalide ? "border-destructive" : "border-border"
+        }`}
+      />
+      {pending ? (
+        <Loader2 className="size-3 animate-spin" />
+      ) : saved ? (
+        <Check className="size-3 text-positive-ink" />
+      ) : null}
+    </span>
   );
 }
 
 // Filtres de statut (segmentation du pipeline).
 const FILTRES: { value: string; label: string; test: (p: ProspectRow) => boolean }[] = [
   { value: "a_traiter", label: "À traiter", test: (p) => !["ecarte", "converti"].includes(p.statut) },
+  { value: "en_file", label: "En file d'envoi", test: (p) => p.statut === "a_contacter" },
   { value: "a_relancer", label: "À relancer", test: (p) => p.relanceDue },
-  { value: "non_contacte", label: "Non contactés", test: (p) => ["nouveau", "a_contacter"].includes(p.statut) },
+  { value: "non_contacte", label: "Non contactés", test: (p) => p.statut === "nouveau" },
   { value: "contacte", label: "Contactés", test: (p) => p.statut === "contacte" },
   { value: "converti", label: "Convertis", test: (p) => p.statut === "converti" },
   { value: "ecarte", label: "Écartés", test: (p) => p.statut === "ecarte" },
@@ -329,6 +357,11 @@ function StatutTags({ p }: { p: ProspectRow }) {
       >
         {labelOf(PROSPECT_STATUTS, p.statut)}
       </Badge>
+      {p.statut === "a_contacter" ? (
+        <Badge className="gap-1 border-accent-brand/30 bg-accent-brand-bg font-normal text-accent-brand">
+          <Inbox className="size-3" /> En file
+        </Badge>
+      ) : null}
       {p.messageEnvoye ? (
         <Badge variant="outline" className="gap-1 font-normal text-muted-foreground">
           <Mail className="size-3" /> Mail envoyé
@@ -364,6 +397,7 @@ function ProspectSheet({
   const audite = p ? p.statutAudit === "ok" || p.statutAudit === "aucun_site" : false;
   const enErreur = p?.statutAudit === "erreur";
   const contacte = p?.statut === "contacte";
+  const enFile = p?.statut === "a_contacter";
 
   function run(fn: () => Promise<unknown>, msg?: string) {
     start(async () => {
@@ -409,7 +443,7 @@ function ProspectSheet({
                 ) : (
                   <span className="text-muted-foreground">Sans site</span>
                 )}
-                {p.email ? <CopyEmail email={p.email} /> : null}
+                <EmailInline id={p.id} email={p.email} />
                 {p.telephone ? (
                   <span className="inline-flex items-center gap-1 text-muted-foreground">
                     <Phone className="size-3" /> {p.telephone}
@@ -538,9 +572,49 @@ function ProspectSheet({
             {/* Actions bas de panneau */}
             <div className="sticky bottom-0 space-y-2 border-t bg-popover p-4">
               <div className="flex flex-wrap gap-2">
+                {audite && !contacte && !enFile ? (
+                  <Button
+                    size="sm"
+                    onClick={() =>
+                      run(
+                        () => changerStatutProspect(p.id, "a_contacter"),
+                        "Ajouté à la file d'envoi.",
+                      )
+                    }
+                    disabled={pending || !emailValide(p.email)}
+                    title={
+                      emailValide(p.email)
+                        ? "Le mail partira au prochain lancement de campagne"
+                        : "Ajoute un e-mail valide d'abord"
+                    }
+                  >
+                    <Inbox /> Mettre en file d&apos;envoi
+                  </Button>
+                ) : null}
+                {enFile ? (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() =>
+                      run(
+                        () => changerStatutProspect(p.id, "nouveau"),
+                        "Retiré de la file.",
+                      )
+                    }
+                    disabled={pending}
+                  >
+                    <Undo2 /> Retirer de la file
+                  </Button>
+                ) : null}
                 {audite && !contacte ? (
-                  <Button size="sm" onClick={() => setMailOpen(true)} disabled={pending}>
-                    <Send /> Mail envoyé
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setMailOpen(true)}
+                    disabled={pending}
+                    title="J'ai envoyé le mail moi-même (journalisation)"
+                  >
+                    <Send /> Déjà envoyé
                   </Button>
                 ) : null}
                 {p.statut !== "converti" ? (

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowLeft, Users, Send, BellRing, Target, Mails } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 
 import { prisma } from "@/lib/db";
 import { PageHeader } from "@/components/page-header";
@@ -21,7 +22,7 @@ export const maxDuration = 60;
 
 export default async function RechercheProspectsPage() {
   const now = new Date();
-  const [prospects, nbAAuditer, nbContactes, nbScore] = await Promise.all([
+  const [prospects, nbAAuditer, nbContactes, nbScore, nbEnFile] = await Promise.all([
     prisma.prospect.findMany({
       orderBy: [{ statut: "asc" }, { score: "desc" }, { createdAt: "desc" }],
       take: 300,
@@ -31,6 +32,7 @@ export default async function RechercheProspectsPage() {
     }),
     prisma.prospect.count({ where: { statut: "contacte" } }),
     prisma.prospect.count({ where: { score: { gte: 65 }, statut: { notIn: ["ecarte", "converti"] } } }),
+    prisma.prospect.count({ where: { statut: "a_contacter" } }),
   ]);
 
   const relanceDue = (p: (typeof prospects)[number]) =>
@@ -95,7 +97,12 @@ export default async function RechercheProspectsPage() {
       >
         <Button asChild variant="outline" size="sm">
           <Link href="/prospection/campagne">
-            <Mails /> Campagne
+            <Mails /> File d&apos;envoi
+            {nbEnFile > 0 ? (
+              <Badge variant="secondary" className="ml-1 font-mono tabular-nums">
+                {nbEnFile}
+              </Badge>
+            ) : null}
           </Link>
         </Button>
         <ExportProspectsButton />
