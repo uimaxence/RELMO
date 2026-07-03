@@ -46,6 +46,13 @@ export const FORMULES: Option[] = [
 export const PROSPECTION_OBJECTIF_MENSUEL = 130; // envois/mois visés (~120-150)
 export const PROSPECTION_TAUX_REPONSE_MIN = 2; // % en-dessous duquel ajuster accroche/cible
 
+// Campagne d'envoi (SMTP). Garde-fous délivrabilité (cf. brief §2 / §6).
+export const CAMPAGNE_PLAFOND = 20; // mails max par lancement
+export const CAMPAGNE_DELAI_SEC = 30; // délai entre deux envois (throttle)
+// Mention opt-out RGPD par défaut (éditable dans les réglages campagne).
+export const DEFAUT_OPT_OUT =
+  "Vous ne souhaitez pas être recontacté ? Répondez simplement « STOP » et je vous retire aussitôt.";
+
 // Ordre = progression du pipeline (F10).
 export const DEVIS_STATUTS: Option[] = [
   { value: "brouillon", label: "Brouillon" },

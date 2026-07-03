@@ -1,5 +1,7 @@
 import Link from "next/link";
-import { ArrowLeft, Users, Send, BellRing, Target } from "lucide-react";
+import { ArrowLeft, Users, Send, BellRing, Target, Mails } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
 
 import { prisma } from "@/lib/db";
 import { PageHeader } from "@/components/page-header";
@@ -91,6 +93,11 @@ export default async function RechercheProspectsPage() {
         title="Recherche de prospects"
         description="Trouver, auditer et scorer des entreprises locales à démarcher, puis les convertir en clients."
       >
+        <Button asChild variant="outline" size="sm">
+          <Link href="/prospection/campagne">
+            <Mails /> Campagne
+          </Link>
+        </Button>
         <ExportProspectsButton />
         <Link
           href="/prospection"

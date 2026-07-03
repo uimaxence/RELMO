@@ -1,0 +1,104 @@
+"use client";
+
+import { useActionState, useState } from "react";
+import { ChevronDown, Settings2 } from "lucide-react";
+import { toast } from "sonner";
+
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Field } from "@/components/forms/form-ui";
+import { updateReglageCampagne } from "@/app/actions/envies";
+import { initialFormState, type FormState } from "@/lib/form";
+import { DEFAUT_OPT_OUT } from "@/lib/constants";
+
+// Contenus injectés dans chaque mail : signature, opt-out, lien de réalisation
+// (remplace le placeholder [lien d'une réalisation]). Repliable.
+export function ReglageCampagneForm({
+  signatureEmail,
+  optOutTexte,
+  lienRealisation,
+}: {
+  signatureEmail: string | null;
+  optOutTexte: string | null;
+  lienRealisation: string | null;
+}) {
+  const [open, setOpen] = useState(false);
+  const [state, formAction, pending] = useActionState(
+    async (prev: FormState, formData: FormData) => {
+      const res = await updateReglageCampagne(prev, formData);
+      if (res?.ok) toast.success(res.message);
+      else if (res) toast.error(res.message ?? "Erreur.");
+      return res;
+    },
+    initialFormState,
+  );
+
+  return (
+    <Card>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm font-medium"
+      >
+        <Settings2 className="size-4 text-muted-foreground" />
+        Réglages de campagne (signature, opt-out, lien de réalisation)
+        <ChevronDown
+          className={`ml-auto size-4 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`}
+        />
+      </button>
+      {open ? (
+        <CardContent className="pt-0">
+          <form action={formAction} className="space-y-4">
+            <Field
+              label="Signature"
+              htmlFor="signatureEmail"
+              hint="Ajoutée en pied de chaque mail."
+              error={state?.fieldErrors?.signatureEmail}
+            >
+              <Textarea
+                id="signatureEmail"
+                name="signatureEmail"
+                defaultValue={signatureEmail ?? ""}
+                placeholder={"Maxence Cailleau\nDesigner web · Angers\nhttps://…"}
+                className="min-h-[90px]"
+              />
+            </Field>
+            <Field
+              label="Lien de réalisation"
+              htmlFor="lienRealisation"
+              hint="Remplace automatiquement [lien d'une réalisation] dans les mails."
+              error={state?.fieldErrors?.lienRealisation}
+            >
+              <Input
+                id="lienRealisation"
+                name="lienRealisation"
+                type="url"
+                defaultValue={lienRealisation ?? ""}
+                placeholder="https://ton-site.fr/realisations/…"
+              />
+            </Field>
+            <Field
+              label="Mention opt-out (RGPD)"
+              htmlFor="optOutTexte"
+              hint="Obligatoire en prospection B2B. Laisse vide pour le texte par défaut."
+              error={state?.fieldErrors?.optOutTexte}
+            >
+              <Textarea
+                id="optOutTexte"
+                name="optOutTexte"
+                defaultValue={optOutTexte ?? ""}
+                placeholder={DEFAUT_OPT_OUT}
+                className="min-h-[70px]"
+              />
+            </Field>
+            <Button type="submit" disabled={pending}>
+              {pending ? "Enregistrement…" : "Enregistrer"}
+            </Button>
+          </form>
+        </CardContent>
+      ) : null}
+    </Card>
+  );
+}

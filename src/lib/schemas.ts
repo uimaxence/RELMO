@@ -144,6 +144,20 @@ export const paliersSchema = z.object({
   tarifSuivi: montant("Tarif Suivi invalide."),
 });
 
+// Texte optionnel qui peut être VIDÉ (→ null) — contrairement à optionalString
+// (undefined) qui laisse la valeur inchangée en base.
+const nullableText = z.preprocess(
+  (v) => (v === "" || v === null || v === undefined ? null : String(v).trim()),
+  z.string().nullable(),
+);
+
+// Réglages de campagne (contenus injectés dans les mails).
+export const reglageCampagneSchema = z.object({
+  signatureEmail: nullableText,
+  optOutTexte: nullableText,
+  lienRealisation: nullableText,
+});
+
 export const objectifSchema = z.object({
   montantCible: montant("Cible invalide."),
   mrrDepart: montant("MRR de départ invalide."),

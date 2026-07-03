@@ -10,6 +10,16 @@ import { auditerProspect, enrichirDirigeant } from "@/lib/ai/assistant";
 import { REGIONS, REGION_DEFAUT } from "@/lib/prospection/regions";
 import { secteurByCle } from "@/lib/prospection/secteurs";
 import { PROSPECT_RELANCE_JOURS } from "@/lib/constants";
+import {
+  sendMail,
+  verifierSmtp,
+  smtpConfigured,
+  emailValide,
+} from "@/lib/mailer";
+import { construireEmail } from "@/lib/prospection/email";
+import { ensureReglage } from "@/lib/wishlist";
+
+export { smtpConfigured };
 
 // Récupère quelques messages réellement envoyés par l'utilisateur → sert
 // d'exemples de style pour que DeepSeek imite sa façon d'écrire.
@@ -404,6 +414,83 @@ export async function marquerRelanceFaite(id: string): Promise<void> {
     },
   });
   revalidatePath(PAGE);
+}
+
+// --- Envoi de campagne (SMTP) ---
+
+// Corrige/renseigne l'email d'un prospect (saisie inline avant campagne).
+export async function updateEmailProspect(
+  id: string,
+  email: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const clean = email.trim();
+  if (clean && !emailValide(clean)) return { ok: false, error: "Email invalide." };
+  await prisma.prospect.update({ where: { id }, data: { email: clean || null } });
+  revalidatePath(PAGE);
+  return { ok: true };
+}
+
+// Teste la connexion SMTP (bouton dédié).
+export async function testerConnexionSmtp(): Promise<{ ok: boolean; error?: string }> {
+  return verifierSmtp();
+}
+
+// Envoie un mail de test (format + délivrabilité) sans rien marquer en base.
+export async function envoyerMailTest(
+  destinataire?: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const to = destinataire?.trim() || process.env.SMTP_USER || "";
+  if (!emailValide(to)) return { ok: false, error: "Destinataire de test invalide." };
+  const reglage = await ensureReglage();
+  const accroche =
+    "Objet : Test d'envoi Relmo\n\nBonjour, ceci est un test d'envoi depuis Relmo. " +
+    "Si tu lis ce message, la configuration SMTP fonctionne. Le lien [lien d'une réalisation] " +
+    "sera remplacé automatiquement si tu l'as renseigné.";
+  const { objet, corps } = construireEmail(accroche, reglage);
+  return sendMail({ to, subject: `[TEST] ${objet}`, text: corps });
+}
+
+// Envoie le mail d'un prospect et le fait entrer dans le pipeline. Appelé une fois
+// par prospect par l'orchestrateur client (throttle côté UI → pas de timeout
+// serverless). `accrocheOverride` = message édité dans l'UI (sinon accrocheEmail).
+export async function envoyerMailProspect(
+  id: string,
+  accrocheOverride?: string,
+): Promise<{ ok: boolean; error?: string }> {
+  if (!smtpConfigured()) {
+    return { ok: false, error: "SMTP non configuré (renseigne SMTP_* dans .env)." };
+  }
+  const p = await prisma.prospect.findUnique({ where: { id } });
+  if (!p) return { ok: false, error: "Prospect introuvable." };
+  if (!emailValide(p.email)) return { ok: false, error: "EMAIL_INVALIDE" };
+
+  const accroche = accrocheOverride?.trim() || p.accrocheEmail || "";
+  if (!accroche) return { ok: false, error: "Pas de message (audite d'abord le prospect)." };
+
+  const reglage = await ensureReglage();
+  const { objet, corps } = construireEmail(accroche, reglage);
+  if (!objet) {
+    return { ok: false, error: "Objet manquant (le message doit commencer par « Objet : … »)." };
+  }
+
+  const res = await sendMail({ to: p.email!, subject: objet, text: corps });
+  if (!res.ok) return res;
+
+  const now = new Date();
+  const relance = new Date(now.getTime() + PROSPECT_RELANCE_JOURS * 86_400_000);
+  await prisma.prospect.update({
+    where: { id },
+    data: {
+      statut: "contacte",
+      contacteLe: now,
+      relanceLe: relance,
+      relanceFaiteLe: null,
+      messageEnvoye: corps,
+    },
+  });
+  revalidatePath(PAGE);
+  revalidatePath("/prospection");
+  return { ok: true };
 }
 
 // « Réponse reçue » : horodate la 1re réponse (bascule si déjà marqué). Sert de

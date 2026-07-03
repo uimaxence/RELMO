@@ -3,7 +3,12 @@
 import { revalidatePath } from "next/cache";
 
 import { prisma } from "@/lib/db";
-import { envieSchema, reglageSchema, paliersSchema } from "@/lib/schemas";
+import {
+  envieSchema,
+  reglageSchema,
+  paliersSchema,
+  reglageCampagneSchema,
+} from "@/lib/schemas";
 import { parseForm, type FormState } from "@/lib/form";
 import { ensureReglage } from "@/lib/wishlist";
 
@@ -89,4 +94,22 @@ export async function updatePaliers(
   revalidatePath("/pipeline");
   revalidatePath("/acquisition");
   return { ok: true, message: "Paliers mis à jour." };
+}
+
+// Contenus de campagne (signature, opt-out, lien de réalisation) injectés dans
+// chaque mail de prospection.
+export async function updateReglageCampagne(
+  _prev: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const parsed = parseForm(reglageCampagneSchema, formData);
+  if (!parsed.ok) return parsed.state;
+
+  await ensureReglage();
+  await prisma.reglage.update({
+    where: { id: "singleton" },
+    data: parsed.data,
+  });
+  revalidatePath("/prospection/campagne");
+  return { ok: true, message: "Réglages de campagne enregistrés." };
 }

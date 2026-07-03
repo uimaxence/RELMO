@@ -272,6 +272,10 @@ model Reglage {
   palierEssentiel    Float    @default(700)
   palierPro          Float    @default(1200)
   tarifSuivi         Float    @default(90)
+  // Campagne de prospection (envoi SMTP). Contenus injectés dans chaque mail.
+  signatureEmail     String? // pied de signature (nom, site, tél…)
+  optOutTexte        String? // mention opt-out RGPD (défaut : DEFAUT_OPT_OUT)
+  lienRealisation    String? // URL de réalisation qui remplace [lien d'une réalisation]
   updatedAt          DateTime @updatedAt
 }
 
