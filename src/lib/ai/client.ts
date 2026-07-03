@@ -4,9 +4,15 @@ import { PROVIDERS, type AiProvider } from "@/lib/ai/providers";
 // un provider + des messages et renvoie un résultat sérialisable (traverse la
 // frontière server→client tel quel). Toute erreur est capturée → jamais de crash.
 
+// Un message peut être du texte simple, ou (multimodal) un tableau de parties
+// texte + image (format OpenAI, supporté par Gemini via son endpoint compatible).
+export type AiContentPart =
+  | { type: "text"; text: string }
+  | { type: "image_url"; image_url: { url: string } };
+
 export type AiMessage = {
   role: "system" | "user" | "assistant";
-  content: string;
+  content: string | AiContentPart[];
 };
 
 export type AiResult =

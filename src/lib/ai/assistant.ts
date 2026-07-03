@@ -385,7 +385,7 @@ RÈGLES GÉNÉRALES
 - Le nom d'entreprise cité DOIT être exactement celui fourni dans les signaux. Jamais un autre.
 - Ton pair à pair, chaleureux, sûr de lui. Jamais professeur, jamais alarmiste. On parle bénéfice client, pas technique. Une critique max, enrobée d'un compliment sincère.
 
-CHAMPS INTERNES (score, design, anciennete, points_faibles) : analyse honnête pour Maxence, JAMAIS montrée au prospect. "design" et "anciennete" sont des HYPOTHÈSES déduites des signaux, tu ne vois pas le rendu visuel réel.
+CHAMPS INTERNES (score, design, anciennete, points_faibles) : analyse honnête pour Maxence, JAMAIS montrée au prospect. Si un champ "visuel" est fourni dans les signaux, il vient d'une VRAIE analyse de la capture d'écran : "design" reprend alors son constat (fait avéré). Sinon "design" et "anciennete" sont des HYPOTHÈSES déduites des signaux techniques (tu n'as pas vu le rendu).
 
 ACCROCHE_EMAIL : cold email court (~90-110 mots MAX), dans cet ordre :
 1. Objet (4-7 mots, sans "audit gratuit", sans MAJUSCULES criardes) : éveille la curiosité ou nomme un bénéfice concret. Écris-le en 1re ligne sous la forme "Objet : ...".
@@ -406,9 +406,9 @@ TABLE JARGON → BÉNÉFICE (obligatoire)
 - jQuery / CMS obsolète → "faille de sécurité + site qui rame"
 - Pas d'avis / réalisations → "un visiteur hésitant n'a aucune preuve pour vous faire confiance"
 
-LEVIER "DESIGN" (fallback quand aucun point technique fort ET vérifiable) :
-- Tu NE VOIS PAS le design. INTERDIT d'affirmer un fait sur leur design ("votre design est dépassé") : si c'est faux, la crédibilité est détruite.
-- Formule UNIQUEMENT en généralité couverte (si / souvent / en général) OU en question. Une phrase couverte ne peut pas être contredite par la réalité. Pioche et VARIE une formulation de la banque :
+LEVIER "DESIGN" :
+- CAS 1, un champ "visuel" est fourni (une VRAIE analyse de la capture d'écran) : tu PEUX affirmer le design franchement, en t'appuyant sur son "constat" et ses "pointsVisuels" (ex. "votre site fait un peu daté, surtout la typographie et les visuels"). Reste factuel, courtois, UN SEUL point visuel, jamais méprisant. Si "modernite" vaut "moderne", NE prends PAS le design comme levier (choisis un point technique) et complimente plutôt le design.
+- CAS 2, PAS de champ "visuel" (ou vide) : tu NE VOIS PAS le design. INTERDIT d'affirmer un fait design. Formule UNIQUEMENT en généralité couverte (si / souvent / en général) OU en question. Pioche et VARIE une formulation de la banque :
   · "Si votre site a quelques années, il y a de fortes chances qu'il ne reflète plus vraiment la qualité de votre travail, et un visiteur se fait une opinion en 3 secondes."
   · "Souvent, le design est ce qui vieillit le plus vite sur un site : même avec un bon contenu, une présentation datée fait douter et coûte des prises de contact."
   · "Aujourd'hui, un visiteur juge votre sérieux en quelques secondes, surtout au design. S'il paraît un peu ancien, vous perdez des devis avant même le premier échange."
@@ -428,6 +428,7 @@ export async function auditerProspect(input: {
   activite?: string | null;
   statutSite: string;
   signaux: unknown;
+  visuel?: { modernite: string; constat: string; pointsVisuels: string[] } | null; // verdict de la capture (Gemini)
   stylesUtilisateur?: string[]; // messages déjà envoyés par l'user → imiter son style
 }): Promise<{ ok: true; data: ProspectAudit } | { ok: false; error: string }> {
   // Si l'utilisateur a déjà envoyé des messages, on les donne en exemples de
@@ -457,6 +458,7 @@ export async function auditerProspect(input: {
               activite: input.activite ?? "",
               statut_site: input.statutSite,
               signaux: input.signaux,
+              visuel: input.visuel ?? null,
             },
             null,
             2,

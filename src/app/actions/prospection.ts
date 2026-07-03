@@ -6,6 +6,7 @@ import Papa from "papaparse";
 import { prisma } from "@/lib/db";
 import { collecter, domaineDe, placesConfigured, type LeadBrut } from "@/lib/prospection/places";
 import { analyzeSite } from "@/lib/prospection/audit";
+import { analyseVisuelle } from "@/lib/prospection/visuel";
 import { auditerProspect, enrichirDirigeant } from "@/lib/ai/assistant";
 import { REGIONS, REGION_DEFAUT } from "@/lib/prospection/regions";
 import { secteurByCle } from "@/lib/prospection/secteurs";
@@ -239,12 +240,16 @@ export async function auditerUnProspect(
   if (!p) return { ok: false, error: "Prospect introuvable." };
 
   const { statut, signals, contacts } = await analyzeSite(p.site);
+  // Analyse VISUELLE (capture + Gemini) : null si pas de clé/échec → l'accroche
+  // retombe alors sur le « design couvert ». Sinon elle peut affirmer le design.
+  const visuel = await analyseVisuelle(p.site);
   const ia = await auditerProspect({
     nom: p.nom,
     ville: p.ville,
     activite: p.activite,
     statutSite: statut,
     signaux: signals,
+    visuel,
     stylesUtilisateur: await stylesUtilisateur(),
   });
   if (!ia.ok) {
@@ -269,7 +274,8 @@ export async function auditerUnProspect(
     data: {
       statutAudit: statut,
       score: ia.data.score,
-      design: ia.data.design || null,
+      // Verdict visuel réel prioritaire sur l'hypothèse déduite des signaux.
+      design: (visuel ? `[${visuel.modernite}] ${visuel.constat}` : ia.data.design) || null,
       anciennete: ia.data.anciennete || null,
       pointsFaibles: ia.data.pointsFaibles.join(" • ") || null,
       accrocheEmail: ia.data.accrocheEmail || null,

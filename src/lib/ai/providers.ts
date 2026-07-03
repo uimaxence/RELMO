@@ -2,7 +2,7 @@
 // (`/chat/completions`, auth Bearer) → un seul client `fetch` les couvre tous.
 // Ajouter un provider (ex. Claude) = ajouter une entrée ici, rien d'autre.
 
-export type AiProvider = "perplexity" | "deepseek";
+export type AiProvider = "perplexity" | "deepseek" | "gemini";
 
 type ProviderConfig = {
   label: string;
@@ -25,6 +25,14 @@ export const PROVIDERS: Record<AiProvider, ProviderConfig> = {
     baseUrl: "https://api.deepseek.com",
     envKey: "DEEPSEEK_API_KEY",
     defaultModel: "deepseek-chat",
+  },
+  // Vision bon marché (endpoint compatible OpenAI) → analyse du VISUEL d'un site
+  // prospect (design daté/moderne) à partir d'une capture d'écran.
+  gemini: {
+    label: "Gemini",
+    baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai",
+    envKey: "GEMINI_API_KEY",
+    defaultModel: "gemini-2.0-flash",
   },
 };
 
