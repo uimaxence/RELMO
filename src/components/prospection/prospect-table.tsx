@@ -20,6 +20,7 @@ import {
   MessageSquare,
   Inbox,
   Undo2,
+  MailX,
   Search as SearchIcon,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -190,6 +191,11 @@ function EmailInline({ id, email }: { id: string; email: string | null }) {
 const FILTRES: { value: string; label: string; test: (p: ProspectRow) => boolean }[] = [
   { value: "a_traiter", label: "À traiter", test: (p) => !["ecarte", "converti"].includes(p.statut) },
   { value: "en_file", label: "En file d'envoi", test: (p) => p.statut === "a_contacter" },
+  {
+    value: "sans_email",
+    label: "Sans e-mail",
+    test: (p) => !emailValide(p.email) && !["ecarte", "converti"].includes(p.statut),
+  },
   { value: "a_relancer", label: "À relancer", test: (p) => p.relanceDue },
   { value: "non_contacte", label: "Non contactés", test: (p) => p.statut === "nouveau" },
   { value: "contacte", label: "Contactés", test: (p) => p.statut === "contacte" },
@@ -357,6 +363,11 @@ function StatutTags({ p }: { p: ProspectRow }) {
       >
         {labelOf(PROSPECT_STATUTS, p.statut)}
       </Badge>
+      {!emailValide(p.email) && ["nouveau", "a_contacter"].includes(p.statut) ? (
+        <Badge className="gap-1 border-warning-ink/30 bg-warning-bg font-normal text-warning-ink">
+          <MailX className="size-3" /> Sans e-mail
+        </Badge>
+      ) : null}
       {p.statut === "a_contacter" ? (
         <Badge className="gap-1 border-accent-brand/30 bg-accent-brand-bg font-normal text-accent-brand">
           <Inbox className="size-3" /> En file
