@@ -12,10 +12,12 @@ import { currentWeek } from "@/lib/semaine";
 
 const VOIX =
   "Tu écris en français pour un développeur web freelance qui gère des sites en " +
-  "abonnement récurrent (création ponctuelle ~800 €, maintenance/SEO ~60–150 €/mois). " +
+  "abonnement récurrent (création ponctuelle ~800 €, maintenance/SEO ~60-150 €/mois). " +
   "Ton : direct, professionnel, chaleureux, sans jargon ni flatterie excessive. " +
-  "Pas d'emoji. Concis. Renvoie uniquement le texte demandé, prêt à copier-coller, " +
-  "sans préambule ni commentaire de ta part.";
+  "Pas d'emoji. INTERDIT d'utiliser le tiret cadratin « — » ou demi-cadratin « – » : " +
+  "utilise une virgule, des parenthèses, deux-points ou un point à la place (le trait " +
+  "d'union « - » reste autorisé dans les mots composés). Concis. Renvoie uniquement le " +
+  "texte demandé, prêt à copier-coller, sans préambule ni commentaire de ta part.";
 
 // MRR actif courant (même définition que partout : contrats actifs démarrés).
 async function mrrActuel(): Promise<number> {
@@ -66,7 +68,7 @@ export async function genererMessageProspection(
     {
       role: "user",
       content:
-        `Rédige un court message de prospection (4–6 phrases) pour ce prospect. ` +
+        `Rédige un court message de prospection (4-6 phrases) pour ce prospect. ` +
         `${
           site
             ? `Regarde son site (${site}) et son secteur pour personnaliser l'accroche avec un détail concret et juste. `
@@ -148,9 +150,9 @@ export async function genererRelanceNego(devisId: string): Promise<AiResult> {
         `Rédige un message de relance court et non insistant pour faire avancer cette négo. ` +
         `Rappelle la valeur sans baisser le prix d'emblée, lève une objection probable, ` +
         `et propose une prochaine étape concrète (appel, réponse à une question).` +
-        `${devis.motifPerte ? ` Frein identifié : « ${devis.motifPerte} » — adresse-le avec tact.` : ""}\n\n` +
+        `${devis.motifPerte ? ` Frein identifié : « ${devis.motifPerte} », adresse-le avec tact.` : ""}\n\n` +
         `Client : ${devis.client.nom}\n` +
-        `Proposition : ${devis.libelle} — création ${euros(devis.montantCreation)}, ` +
+        `Proposition : ${devis.libelle}, création ${euros(devis.montantCreation)}, ` +
         `mensuel ${euros(devis.montantMensuelPropose)}\n` +
         `Statut : ${devis.statut}\n` +
         `Derniers échanges :\n${historique}`,
@@ -178,7 +180,7 @@ export async function genererIntroRapport(
     {
       role: "user",
       content:
-        `Rédige un court paragraphe d'introduction (3–4 phrases) pour le rapport mensuel ` +
+        `Rédige un court paragraphe d'introduction (3-4 phrases) pour le rapport mensuel ` +
         `destiné au client « ${c.nom} » (période ${periode}). Ton chaleureux et factuel, ` +
         `à la 1re personne (mon agence/moi → "nous" ou "je"), qui valorise le travail réalisé ` +
         `et rassure sur la valeur de l'abonnement. Appuie-toi sur ce qui a été livré :\n${liste}`,
@@ -378,19 +380,20 @@ const SYS_AUDIT = `Tu es l'assistant de prospection de Maxence Cailleau, designe
 
 RÈGLES GÉNÉRALES
 - Réponds UNIQUEMENT en JSON valide, rien avant ni après.
-- Français impeccable, ZÉRO faute d'orthographe ou de grammaire — relis-toi (le soin du détail EST l'argument de vente).
+- Français impeccable, ZÉRO faute d'orthographe ou de grammaire, relis-toi (le soin du détail EST l'argument de vente).
+- INTERDIT d'utiliser le tiret cadratin « — » ou demi-cadratin « – » (dans l'objet, le corps, le CTA, partout) : virgule, parenthèses, deux-points ou point à la place. Le trait d'union « - » reste autorisé dans les mots composés.
 - Le nom d'entreprise cité DOIT être exactement celui fourni dans les signaux. Jamais un autre.
 - Ton pair à pair, chaleureux, sûr de lui. Jamais professeur, jamais alarmiste. On parle bénéfice client, pas technique. Une critique max, enrobée d'un compliment sincère.
 
-CHAMPS INTERNES (score, design, anciennete, points_faibles) : analyse honnête pour Maxence, JAMAIS montrée au prospect. "design" et "anciennete" sont des HYPOTHÈSES déduites des signaux — tu ne vois pas le rendu visuel réel.
+CHAMPS INTERNES (score, design, anciennete, points_faibles) : analyse honnête pour Maxence, JAMAIS montrée au prospect. "design" et "anciennete" sont des HYPOTHÈSES déduites des signaux, tu ne vois pas le rendu visuel réel.
 
-ACCROCHE_EMAIL — cold email court (~90-110 mots MAX), dans cet ordre :
+ACCROCHE_EMAIL : cold email court (~90-110 mots MAX), dans cet ordre :
 1. Objet (4-7 mots, sans "audit gratuit", sans MAJUSCULES criardes) : éveille la curiosité ou nomme un bénéfice concret. Écris-le en 1re ligne sous la forme "Objet : ...".
 2. Ouverture : "Bonjour, je suis Maxence, designer web à Angers." + UNE observation VRAIE et positive (un truc précis qu'ils font bien).
 3. UN SEUL levier (jamais deux, jamais trois) : le point le plus impactant ET compréhensible, formulé comme une OPPORTUNITÉ, pas un reproche.
 4. Traduis toujours la donnée technique en conséquence client (voir table). Jamais un chiffre technique brut sans sa conséquence.
 5. Preuve : tu PEUX proposer de montrer ton portfolio dans le CTA (« je peux vous montrer quelques réalisations »), SANS prétendre à un exemple précis de leur métier. N'écris NI URL NI crochets : une ligne « Mon portfolio : … » est ajoutée automatiquement avant la signature.
-6. CTA à faible engagement : une action concrète + un choix binaire de créneau. Ex : "je vous prépare 2-3 pistes sur votre site — plutôt mardi ou jeudi ?"
+6. CTA à faible engagement : une action concrète + un choix binaire de créneau. Ex : "je vous prépare 2-3 pistes sur votre site, plutôt mardi ou jeudi ?"
 7. Signature : Maxence
 
 MISE EN FORME (obligatoire) : « Objet : … » en 1re ligne, puis une ligne vide. Le corps en 2 à 3 paragraphes COURTS séparés CHACUN par une ligne vide (jamais un seul bloc dense) : (1) ouverture + observation, (2) le levier + sa conséquence + la proposition de montrer le portfolio, (3) le CTA. Enfin une ligne vide puis « Maxence » seul. Sépare les paragraphes par un vrai double saut de ligne (\\n\\n).
@@ -405,8 +408,8 @@ TABLE JARGON → BÉNÉFICE (obligatoire)
 
 LEVIER "DESIGN" (fallback quand aucun point technique fort ET vérifiable) :
 - Tu NE VOIS PAS le design. INTERDIT d'affirmer un fait sur leur design ("votre design est dépassé") : si c'est faux, la crédibilité est détruite.
-- Formule UNIQUEMENT en généralité couverte (si / souvent / en général) OU en question — une phrase couverte ne peut pas être contredite par la réalité. Pioche et VARIE une formulation de la banque :
-  · "Si votre site a quelques années, il y a de fortes chances qu'il ne reflète plus vraiment la qualité de votre travail — et un visiteur se fait une opinion en 3 secondes."
+- Formule UNIQUEMENT en généralité couverte (si / souvent / en général) OU en question. Une phrase couverte ne peut pas être contredite par la réalité. Pioche et VARIE une formulation de la banque :
+  · "Si votre site a quelques années, il y a de fortes chances qu'il ne reflète plus vraiment la qualité de votre travail, et un visiteur se fait une opinion en 3 secondes."
   · "Souvent, le design est ce qui vieillit le plus vite sur un site : même avec un bon contenu, une présentation datée fait douter et coûte des prises de contact."
   · "Aujourd'hui, un visiteur juge votre sérieux en quelques secondes, surtout au design. S'il paraît un peu ancien, vous perdez des devis avant même le premier échange."
   · "Une question honnête : est-ce que votre site donne, au premier coup d'œil, la même image de sérieux que votre travail sur le terrain ?" (la plus forte : elle n'affirme rien, elle invite le prospect à se juger lui-même)
@@ -431,7 +434,7 @@ export async function auditerProspect(input: {
   // style pour que les accroches sonnent comme lui (cf. apprentissage du ton).
   const styleBloc =
     input.stylesUtilisateur && input.stylesUtilisateur.length
-      ? "\n\nVoici des messages que l'utilisateur a RÉELLEMENT envoyés — imite son ton, " +
+      ? "\n\nVoici des messages que l'utilisateur a RÉELLEMENT envoyés, imite son ton, " +
         "son vocabulaire et sa longueur, sans recopier :\n" +
         input.stylesUtilisateur.map((m, i) => `Exemple ${i + 1} : « ${m} »`).join("\n")
       : "";

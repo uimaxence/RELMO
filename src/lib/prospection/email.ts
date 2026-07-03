@@ -2,7 +2,15 @@ import { DEFAUT_OPT_OUT } from "@/lib/constants";
 
 // Assemble le mail final à partir de l'accroche générée (qui commence par une
 // ligne « Objet : … ») + les contenus de campagne (lien de réalisation, signature,
-// opt-out). Pur & testable — pas d'I/O.
+// opt-out). Pur & testable, pas d'I/O.
+
+// Bannit le tiret cadratin « — » et demi-cadratin « – » (préférence de style
+// utilisateur). Le trait d'union « - » (mots composés, URLs) est conservé.
+export function sansCadratin(s: string): string {
+  return s
+    .replace(/\s*[—–]\s*/g, ", ") // dash séparateur de clause -> virgule
+    .replace(/,\s*,/g, ",");
+}
 
 export type ContenusCampagne = {
   signatureEmail?: string | null;
@@ -43,7 +51,7 @@ export function construireEmail(
 ): EmailAssemble {
   const { objet, corps } = extraireObjet(accroche);
 
-  let texte = corps;
+  let texte = sansCadratin(corps);
   const lien = contenus.lienRealisation?.trim();
   if (lien) {
     // Remplace le placeholder par l'URL là où l'IA l'a posé.
@@ -59,11 +67,11 @@ export function construireEmail(
   if (lien && !texte.includes(lien)) blocs.push(`Mon portfolio : ${lien}`);
 
   const signature = contenus.signatureEmail?.trim();
-  if (signature) blocs.push(signature);
-  const optOut = (contenus.optOutTexte?.trim() || DEFAUT_OPT_OUT).trim();
-  blocs.push("— — —\n" + optOut);
+  if (signature) blocs.push(sansCadratin(signature));
+  const optOut = sansCadratin((contenus.optOutTexte?.trim() || DEFAUT_OPT_OUT).trim());
+  blocs.push("· · ·\n" + optOut);
 
-  return { objet: objet || "", corps: blocs.join("\n\n") };
+  return { objet: sansCadratin(objet || "").trim(), corps: blocs.join("\n\n") };
 }
 
 // Reste-t-il un placeholder de lien non remplacé ? (avertissement UI avant envoi)
