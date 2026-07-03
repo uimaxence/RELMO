@@ -191,7 +191,15 @@ function EmailInline({ id, email }: { id: string; email: string | null }) {
 
 // Filtres de statut (segmentation du pipeline).
 const FILTRES: { value: string; label: string; test: (p: ProspectRow) => boolean }[] = [
-  { value: "a_traiter", label: "À traiter", test: (p) => !["ecarte", "converti"].includes(p.statut) },
+  {
+    value: "a_traiter",
+    label: "À traiter",
+    // Actionnable maintenant : pas écarté/converti, et soit pas encore contacté,
+    // soit contacté mais relance due. Les contactés « en attente » n'y sont plus.
+    test: (p) =>
+      !["ecarte", "converti"].includes(p.statut) &&
+      (p.statut !== "contacte" || p.relanceDue),
+  },
   { value: "en_file", label: "En file d'envoi", test: (p) => p.statut === "a_contacter" },
   {
     value: "sans_email",
