@@ -5,11 +5,12 @@ import Papa from "papaparse";
 
 import { prisma } from "@/lib/db";
 import { collecter, domaineDe, placesConfigured, type LeadBrut } from "@/lib/prospection/places";
-import { analyzeSite } from "@/lib/prospection/audit";
+import { analyzeSite, type Contacts } from "@/lib/prospection/audit";
 import { analyseVisuelle } from "@/lib/prospection/visuel";
-import { auditerProspect, enrichirDirigeant } from "@/lib/ai/assistant";
+import { auditerProspect, auditerPartenaire, enrichirDirigeant } from "@/lib/ai/assistant";
 import { REGIONS, REGION_DEFAUT } from "@/lib/prospection/regions";
 import { secteurByCle } from "@/lib/prospection/secteurs";
+import { metierByCle, modeleRemuValide } from "@/lib/prospection/metiers-partenaires";
 import { PROSPECT_RELANCE_JOURS } from "@/lib/constants";
 import {
   sendMail,
@@ -75,7 +76,13 @@ async function mapLimit<T, R>(
 
 // Insère un lead en dédupliquant. Renvoie l'id créé, ou null si doublon/ignoré.
 async function upsertLead(
-  lead: LeadBrut & { region?: string; secteur?: string; campagne?: string },
+  lead: LeadBrut & {
+    region?: string;
+    secteur?: string;
+    campagne?: string;
+    cible?: string;
+    metier?: string;
+  },
 ): Promise<string | null> {
   const nom = lead.nom.trim();
   if (!nom) return null;
@@ -91,6 +98,10 @@ async function upsertLead(
     region: lead.region || null,
     secteur: lead.secteur || null,
     campagne: lead.campagne?.trim() || null,
+    cible: lead.cible === "partenaire" ? "partenaire" : "client",
+    metier: lead.metier || null,
+    nbAvis: lead.nbAvis ?? null,
+    noteGoogle: lead.noteGoogle ?? null,
   };
 
   // Clé de dédup : domaine en priorité, sinon placeId.
@@ -117,7 +128,8 @@ async function upsertLead(
   return created.id;
 }
 
-// (A) Scraping Google Places — région + secteur + villes choisies.
+// (A) Scraping Google Places — région + villes choisies. Deux modes :
+// cible « client » (défaut) → secteur V1 ; cible « partenaire » → métier V2.
 export async function collecterProspects(input: {
   region: string;
   secteur: string;
@@ -125,6 +137,8 @@ export async function collecterProspects(input: {
   keywords?: string[];
   pages?: number;
   campagne?: string;
+  cible?: string; // client | partenaire
+  metier?: string; // requis si cible = partenaire
 }): Promise<{
   ok: boolean;
   ajoutes?: number;
@@ -133,8 +147,11 @@ export async function collecterProspects(input: {
   error?: string;
 }> {
   const region = REGIONS[input.region] ? input.region : REGION_DEFAUT;
-  const sect = secteurByCle(input.secteur);
-  if (!sect) return { ok: false, error: "Secteur inconnu." };
+  const cible = input.cible === "partenaire" ? "partenaire" : "client";
+  const met = cible === "partenaire" ? metierByCle(input.metier ?? "") : undefined;
+  const sect = cible === "client" ? secteurByCle(input.secteur) : undefined;
+  if (cible === "client" && !sect) return { ok: false, error: "Secteur inconnu." };
+  if (cible === "partenaire" && !met) return { ok: false, error: "Métier partenaire inconnu." };
 
   const villesRegion = REGIONS[region];
   let villes = (input.villes ?? []).filter((v) => villesRegion.includes(v));
@@ -143,7 +160,7 @@ export async function collecterProspects(input: {
   const keywords =
     input.keywords && input.keywords.length
       ? input.keywords.map((k) => k.trim()).filter(Boolean)
-      : sect.keywords;
+      : (sect?.keywords ?? met?.keywords ?? []);
 
   // Garde-fou temps : on plafonne le nombre de requêtes par lancement.
   const MAX_REQUETES = 60;
@@ -171,8 +188,10 @@ export async function collecterProspects(input: {
     const id = await upsertLead({
       ...lead,
       region,
-      secteur: input.secteur,
+      secteur: sect ? input.secteur : undefined,
       campagne: input.campagne,
+      cible,
+      metier: met?.cle,
     });
     if (id) createdIds.push(id);
   }
@@ -183,8 +202,7 @@ export async function collecterProspects(input: {
 // (B) Import CSV — colonnes nom,site,ville,activite,telephone (mêmes que collect).
 export async function importerProspectsCsv(
   csv: string,
-  secteur?: string,
-  campagne?: string,
+  opts?: { secteur?: string; campagne?: string; cible?: string; metier?: string },
 ): Promise<{
   ok: boolean;
   ajoutes?: number;
@@ -213,8 +231,12 @@ export async function importerProspectsCsv(
       activite: (row.activite ?? row.Activite ?? "").trim(),
       telephone: (row.telephone ?? row.Telephone ?? row.tel ?? "").trim(),
       placeId: "",
-      secteur,
-      campagne,
+      nbAvis: null,
+      noteGoogle: null,
+      secteur: opts?.secteur,
+      campagne: opts?.campagne,
+      cible: opts?.cible,
+      metier: opts?.metier,
     });
     if (id) createdIds.push(id);
   }
@@ -222,13 +244,147 @@ export async function importerProspectsCsv(
   return { ok: true, ajoutes: createdIds.length, total: data.length };
 }
 
+// Contacts extraits du site → champs de la fiche (jamais écraser une saisie user).
+function contactsData(p: { email: string | null; telephone: string | null }, contacts: Contacts) {
+  return {
+    email: contacts.bestEmail || p.email,
+    emailsTous: contacts.emails.join(" ") || null,
+    telephone: p.telephone || contacts.phones[0] || null,
+    siret: contacts.siret,
+  };
+}
+
+// Audit « partenaire » (cible V2) : flags décidés en code (détection déterministe
+// prioritaire), pitch DeepSeek seulement pour les fiches éligibles. Concurrent = stop.
+async function auditerProspectPartenaire(p: {
+  id: string;
+  nom: string;
+  ville: string | null;
+  activite: string | null;
+  site: string | null;
+  metier: string | null;
+  email: string | null;
+  telephone: string | null;
+  nbAvis: number | null;
+  noteGoogle: number | null;
+  dirigeant: string | null;
+  linkedin: string | null;
+}): Promise<{ ok: boolean; score?: number | null; error?: string }> {
+  const met = metierByCle(p.metier ?? "");
+  const { statut, signals, contacts, offreWeb } = await analyzeSite(p.site);
+  const contact = contactsData(p, contacts);
+
+  // Agence web (ou métier inconnu) : jamais de pitch automatique → « à qualifier ».
+  if (!met || !met.autoPitch) {
+    await prisma.prospect.update({
+      where: { id: p.id },
+      data: {
+        statutAudit: statut,
+        flagAQualifier: true,
+        score: null,
+        atouts: null,
+        accrocheEmail: null,
+        accrocheLinkedin: null,
+        note:
+          "À qualifier manuellement : gros comptes qui délaissent les petits projets, " +
+          "ou spécialisation sur une autre techno ?" +
+          (offreWeb.termes.length ? ` Offre web détectée : ${offreWeb.termes.join(", ")}.` : ""),
+        ...contact,
+      },
+    });
+    revalidatePath(PAGE);
+    return { ok: true, score: null };
+  }
+
+  // Concurrent détecté sur SON site (source de vérité déterministe) : stop.
+  if (met.concurrencePossible && offreWeb.detectee) {
+    await prisma.prospect.update({
+      where: { id: p.id },
+      data: {
+        statutAudit: statut,
+        flagConcurrent: true,
+        score: 0,
+        atouts: null,
+        accrocheEmail: null,
+        accrocheLinkedin: null,
+        note: `Concurrent : propose lui-même du web (${offreWeb.termes.join(", ")}).`,
+        ...contact,
+      },
+    });
+    revalidatePath(PAGE);
+    return { ok: true, score: 0 };
+  }
+
+  // Éligible au pitch : analyse visuelle (réceptivité au web, signal positif ici)
+  // puis scoring + accroches DeepSeek.
+  const visuel = await analyseVisuelle(p.site);
+  const reglage = await ensureReglage();
+  const ia = await auditerPartenaire({
+    nom: p.nom,
+    ville: p.ville,
+    metier: met.cle,
+    activite: p.activite,
+    statutSite: statut,
+    signaux: signals,
+    offreWebTermes: offreWeb.termes,
+    nbAvis: p.nbAvis,
+    noteGoogle: p.noteGoogle,
+    visuel,
+    modeleRemu: modeleRemuValide(reglage.modeleRemu),
+    stylesUtilisateur: await stylesUtilisateur(),
+  });
+  if (!ia.ok) {
+    await prisma.prospect.update({
+      where: { id: p.id },
+      data: { statutAudit: "erreur", note: ia.error?.slice(0, 300) ?? null },
+    });
+    return { ok: false, error: ia.error };
+  }
+
+  // Ceinture + bretelles : si l'IA a repéré une offre web dans les signaux
+  // (title, meta, visuel), on flague aussi. Ses accroches sont déjà vidées.
+  const concurrent = ia.data.alerteConcurrence;
+
+  let dirigeant = "";
+  let linkedin = "";
+  if (!concurrent && ENRICH && (ia.data.score ?? 0) >= SCORE_ENRICH_MIN) {
+    const e = await enrichirDirigeant({ nom: p.nom, ville: p.ville, activite: met.label });
+    dirigeant = e.dirigeant;
+    linkedin = e.linkedin;
+  }
+
+  await prisma.prospect.update({
+    where: { id: p.id },
+    data: {
+      statutAudit: statut,
+      flagConcurrent: concurrent,
+      score: concurrent ? 0 : ia.data.score,
+      design: visuel ? `[${visuel.modernite}] ${visuel.constat}` : null,
+      atouts: concurrent ? null : ia.data.atouts.join(" • ") || null,
+      pointsFaibles: ia.data.pointsAttention.join(" • ") || null,
+      accrocheEmail: ia.data.accrocheEmail || null,
+      accrocheLinkedin: ia.data.accrocheLinkedin || null,
+      note: concurrent ? "Concurrent repéré par l'analyse IA (signaux du site)." : undefined,
+      dirigeant: dirigeant || p.dirigeant,
+      linkedin: linkedin || p.linkedin,
+      ...contact,
+    },
+  });
+
+  revalidatePath(PAGE);
+  return { ok: true, score: concurrent ? 0 : ia.data.score };
+}
+
 // Audit d'un prospect : analyse site + DeepSeek (score + accroches) + enrichissement
-// optionnel (Perplexity). Met à jour la ligne en base.
+// optionnel (Perplexity). Met à jour la ligne en base. Route vers le chemin
+// « partenaire » (V2) si la fiche a été collectée avec cette cible.
 export async function auditerUnProspect(
   id: string,
 ): Promise<{ ok: boolean; score?: number | null; error?: string }> {
   const p = await prisma.prospect.findUnique({ where: { id } });
   if (!p) return { ok: false, error: "Prospect introuvable." };
+
+  if (p.cible === "partenaire") return auditerProspectPartenaire(p);
 
   const { statut, signals, contacts } = await analyzeSite(p.site);
   // Analyse VISUELLE (capture + Gemini) : null si pas de clé/échec → l'accroche
@@ -326,7 +482,11 @@ export async function convertirEnClient(
   }
 
   const notes = [
+    p.cible === "partenaire"
+      ? `Partenaire (apporteur d'affaires)${p.metier ? ` : ${metierByCle(p.metier)?.label ?? p.metier}` : ""}`
+      : null,
     p.score != null ? `Score prospection : ${p.score}/100` : null,
+    p.atouts ? `Atouts partenariat : ${p.atouts}` : null,
     p.pointsFaibles ? `Points faibles : ${p.pointsFaibles}` : null,
     p.dirigeant ? `Dirigeant : ${p.dirigeant}` : null,
     p.linkedin ? `LinkedIn : ${p.linkedin}` : null,
@@ -468,6 +628,13 @@ export async function envoyerMailProspect(
   }
   const p = await prisma.prospect.findUnique({ where: { id } });
   if (!p) return { ok: false, error: "Prospect introuvable." };
+  // Garde-fou serveur (pas seulement UI) : concurrent = stop, agence = manuel.
+  if (p.flagConcurrent) {
+    return { ok: false, error: "Fiche flaggée concurrent : aucun envoi automatique." };
+  }
+  if (p.flagAQualifier) {
+    return { ok: false, error: "Fiche « à qualifier manuellement » : pas d'envoi automatique." };
+  }
   if (!emailValide(p.email)) return { ok: false, error: "EMAIL_INVALIDE" };
 
   const accroche = accrocheOverride?.trim() || p.accrocheEmail || "";
@@ -565,11 +732,18 @@ export async function exporterProspectionCsv(
   // (les 2 dernières colonnes = « généré par défaut » vs « réellement envoyé »).
   const rows = prospects.map((p) => ({
     Nom: p.nom,
+    Cible: p.cible === "partenaire" ? "Partenaire" : "Client",
+    Métier: p.metier ? (metierByCle(p.metier)?.label ?? p.metier) : "",
     Activité: p.activite ?? "",
     Secteur: secteurByCle(p.secteur ?? "")?.label ?? p.secteur ?? "",
     Ville: p.ville ?? "",
     Région: p.region ?? "",
     Score: p.score ?? "",
+    Flags: [p.flagConcurrent ? "concurrent" : "", p.flagAQualifier ? "à qualifier" : ""]
+      .filter(Boolean)
+      .join(" + "),
+    Atouts: p.atouts ?? "",
+    Nb_avis_Google: p.nbAvis ?? "",
     Constat_design: p.design ?? "",
     Ancienneté: p.anciennete ?? "",
     Points_faibles: p.pointsFaibles ?? "",

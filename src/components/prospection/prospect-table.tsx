@@ -62,6 +62,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { labelOf, PROSPECT_STATUTS, CANAUX_CONTACT } from "@/lib/constants";
+import { metierByCle } from "@/lib/prospection/metiers-partenaires";
 import {
   auditerUnProspect,
   convertirEnClient,
@@ -87,6 +88,12 @@ export type ProspectRow = {
   design: string | null;
   anciennete: string | null;
   pointsFaibles: string | null;
+  cible: string; // client | partenaire
+  metier: string | null;
+  flagConcurrent: boolean;
+  flagAQualifier: boolean;
+  atouts: string | null;
+  nbAvis: number | null;
   accrocheEmail: string | null;
   accrocheLinkedin: string | null;
   dirigeant: string | null;
@@ -195,11 +202,15 @@ const FILTRES: { value: string; label: string; test: (p: ProspectRow) => boolean
     value: "a_traiter",
     label: "À traiter",
     // Actionnable maintenant : pas écarté/converti, et soit pas encore contacté,
-    // soit contacté mais relance due. Les contactés « en attente » n'y sont plus.
+    // soit contacté mais relance due. Les contactés « en attente » n'y sont plus,
+    // ni les concurrents (aucune action possible : jamais de pitch).
     test: (p) =>
       !["ecarte", "converti"].includes(p.statut) &&
+      !p.flagConcurrent &&
       (p.statut !== "contacte" || p.relanceDue),
   },
+  { value: "partenaires", label: "Partenaires", test: (p) => p.cible === "partenaire" },
+  { value: "a_qualifier", label: "À qualifier", test: (p) => p.flagAQualifier },
   { value: "en_file", label: "En file d'envoi", test: (p) => p.statut === "a_contacter" },
   {
     value: "sans_email",
@@ -381,6 +392,21 @@ function StatutTags({ p }: { p: ProspectRow }) {
       >
         {labelOf(PROSPECT_STATUTS, p.statut)}
       </Badge>
+      {p.cible === "partenaire" ? (
+        <Badge variant="outline" className="font-normal text-muted-foreground">
+          {p.metier ? (metierByCle(p.metier)?.label ?? p.metier) : "Partenaire"}
+        </Badge>
+      ) : null}
+      {p.flagConcurrent ? (
+        <Badge className="gap-1 border-destructive/30 bg-destructive/10 font-normal text-destructive">
+          <AlertTriangle className="size-3" /> Concurrent
+        </Badge>
+      ) : null}
+      {p.flagAQualifier ? (
+        <Badge className="gap-1 border-warning-ink/30 bg-warning-bg font-normal text-warning-ink">
+          <SearchIcon className="size-3" /> À qualifier
+        </Badge>
+      ) : null}
       {!emailValide(p.email) && ["nouveau", "a_contacter"].includes(p.statut) ? (
         <Badge className="gap-1 border-warning-ink/30 bg-warning-bg font-normal text-warning-ink">
           <MailX className="size-3" /> Sans e-mail
@@ -520,10 +546,46 @@ function ProspectSheet({
                 </div>
               ) : (
                 <>
-                  {p.design || p.anciennete ? (
+                  {p.flagConcurrent || p.flagAQualifier ? (
+                    <div
+                      className={`rounded-lg border p-3 text-xs leading-relaxed ${
+                        p.flagConcurrent
+                          ? "border-destructive/30 bg-destructive/10 text-destructive"
+                          : "border-warning-ink/30 bg-warning-bg text-warning-ink"
+                      }`}
+                    >
+                      <p className="font-medium">
+                        {p.flagConcurrent
+                          ? "Concurrent : aucun pitch automatique."
+                          : "À qualifier manuellement avant toute approche."}
+                      </p>
+                      {p.note ? <p className="mt-1">{p.note}</p> : null}
+                    </div>
+                  ) : null}
+
+                  {p.design || p.anciennete || p.nbAvis != null ? (
                     <div className="space-y-0.5 text-muted-foreground">
                       {p.design ? <p>{p.design}</p> : null}
                       {p.anciennete ? <p>{p.anciennete}</p> : null}
+                      {p.nbAvis != null ? (
+                        <p>
+                          {p.nbAvis} avis Google
+                          {p.cible === "partenaire" ? " (proxy volume de portefeuille)" : ""}
+                        </p>
+                      ) : null}
+                    </div>
+                  ) : null}
+
+                  {p.atouts ? (
+                    <div className="flex flex-wrap gap-1.5">
+                      {p.atouts.split(" • ").map((a, i) => (
+                        <Badge
+                          key={i}
+                          className="border-positive-ink/30 bg-positive-bg font-normal text-positive-ink"
+                        >
+                          {a}
+                        </Badge>
+                      ))}
                     </div>
                   ) : null}
 
@@ -605,7 +667,7 @@ function ProspectSheet({
             {/* Actions bas de panneau */}
             <div className="sticky bottom-0 space-y-2 border-t bg-popover p-4">
               <div className="flex flex-wrap gap-2">
-                {audite && !contacte && !enFile ? (
+                {audite && !contacte && !enFile && !p.flagConcurrent && !p.flagAQualifier ? (
                   <Button
                     size="sm"
                     onClick={() =>

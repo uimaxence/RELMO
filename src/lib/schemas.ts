@@ -156,6 +156,8 @@ export const reglageCampagneSchema = z.object({
   signatureEmail: nullableText,
   optOutTexte: nullableText,
   lienRealisation: nullableText,
+  // Pitch partenaire : rémunération proposée (réciprocité forcée pour les comptables).
+  modeleRemu: z.enum(["commission", "reciprocite", "les_deux"]).catch("reciprocite"),
 });
 
 export const objectifSchema = z.object({

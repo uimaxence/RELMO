@@ -8,21 +8,32 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Field } from "@/components/forms/form-ui";
 import { updateReglageCampagne } from "@/app/actions/envies";
 import { initialFormState, type FormState } from "@/lib/form";
 import { DEFAUT_OPT_OUT } from "@/lib/constants";
+import { MODELES_REMU, modeleRemuValide } from "@/lib/prospection/metiers-partenaires";
 
 // Contenus injectés dans chaque mail : signature, opt-out, lien de réalisation
-// (remplace le placeholder [lien d'une réalisation]). Repliable.
+// (remplace le placeholder [lien d'une réalisation]) + modèle de rémunération
+// des pitchs partenaires. Repliable.
 export function ReglageCampagneForm({
   signatureEmail,
   optOutTexte,
   lienRealisation,
+  modeleRemu,
 }: {
   signatureEmail: string | null;
   optOutTexte: string | null;
   lienRealisation: string | null;
+  modeleRemu: string;
 }) {
   const [open, setOpen] = useState(false);
   const [state, formAction, pending] = useActionState(
@@ -78,6 +89,24 @@ export function ReglageCampagneForm({
                 defaultValue={lienRealisation ?? ""}
                 placeholder="https://ton-site.fr/realisations/…"
               />
+            </Field>
+            <Field
+              label="Rémunération proposée aux partenaires"
+              htmlFor="modeleRemu"
+              hint="Adapte les pitchs « apporteurs d'affaires ». Toujours réciprocité pour les experts-comptables (déontologie)."
+            >
+              <Select name="modeleRemu" defaultValue={modeleRemuValide(modeleRemu)}>
+                <SelectTrigger id="modeleRemu" className="w-full sm:max-w-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {MODELES_REMU.map((m) => (
+                    <SelectItem key={m.value} value={m.value}>
+                      {m.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </Field>
             <Field
               label="Mention opt-out (RGPD)"

@@ -27,10 +27,11 @@ export const SECTEURS: Secteur[] = [
     label: "Santé / paramédical",
     favori: true,
     note: "Densité énorme, décideur unique, SEO local vital (« ostéopathe Angers »). Éviter médecins/avocats/notaires (com. réglementée).",
+    // Les experts-comptables ont quitté cette liste : ce sont désormais des
+    // cibles « partenaires » (apporteurs d'affaires), cf. metiers-partenaires.ts.
     keywords: [
       "ostéopathe", "kinesithérapeute", "vétérinaire", "chirurgien-dentiste",
-      "orthophoniste", "podologue", "sophrologue", "naturopathe",
-      "diététicien", "expert-comptable", "cabinet d'expertise comptable",
+      "orthophoniste", "podologue", "sophrologue", "naturopathe", "diététicien",
     ],
   },
   {

@@ -11,6 +11,8 @@ export type LeadBrut = {
   activite: string;
   telephone: string;
   placeId: string;
+  nbAvis: number | null; // avis Google : proxy volume de portefeuille (mode partenaire)
+  noteGoogle: number | null;
 };
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -24,6 +26,8 @@ type PlaceResult = {
   displayName?: { text?: string };
   websiteUri?: string;
   nationalPhoneNumber?: string;
+  rating?: number;
+  userRatingCount?: number;
 };
 
 async function searchText(
@@ -37,7 +41,7 @@ async function searchText(
       "Content-Type": "application/json",
       "X-Goog-Api-Key": key,
       "X-Goog-FieldMask":
-        "places.id,places.displayName,places.websiteUri,places.nationalPhoneNumber,nextPageToken",
+        "places.id,places.displayName,places.websiteUri,places.nationalPhoneNumber,places.rating,places.userRatingCount,nextPageToken",
     },
     body: JSON.stringify({
       textQuery,
@@ -101,6 +105,8 @@ export async function collecter(opts: {
               activite: kw,
               telephone: p.nationalPhoneNumber ?? "",
               placeId: p.id ?? "",
+              nbAvis: typeof p.userRatingCount === "number" ? p.userRatingCount : null,
+              noteGoogle: typeof p.rating === "number" ? p.rating : null,
             });
           }
           token = j.nextPageToken;

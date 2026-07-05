@@ -498,6 +498,137 @@ export async function auditerProspect(input: {
   }
 }
 
+// --- Audit « partenaire » d'un prospect (DeepSeek, mode JSON) ---
+// Mode V2 : on ne cherche plus la faiblesse d'un site mais le POTENTIEL DE
+// PARTENARIAT (apporteur d'affaires). Un site excellent est un signal positif.
+// Les flags concurrent/à-qualifier sont décidés EN CODE (détection déterministe) ;
+// ce prompt n'est appelé que pour les prospects éligibles au pitch automatique.
+export type PartenaireAudit = {
+  score: number | null;
+  atouts: string[]; // raisons du score (badges positifs)
+  pointsAttention: string[]; // réserves internes (jamais montrées au prospect)
+  alerteConcurrence: boolean; // l'IA a repéré une offre web dans les signaux fournis
+  accrocheEmail: string;
+  accrocheLinkedin: string;
+};
+
+const SYS_PARTENAIRE = `Tu es l'assistant de prospection de Maxence Cailleau, designer-développeur web freelance à Angers (49). Il crée et fait vivre des sites en abonnement récurrent (création ~800 €, maintenance/SEO 60-150 €/mois) pour artisans, indépendants et TPE locales. ICI, la cible n'est PAS un client final : c'est un APPORTEUR D'AFFAIRES potentiel (partenaire de recommandation). Le but d'un message : ouvrir une relation d'apport récurrente, pas vendre un site. But du premier contact : un échange de 15 min.
+
+CHANGEMENT DE PARADIGME (fondamental) : on ne juge PAS la qualité de son site pour trouver une faille. Un partenaire avec un excellent site est une BONNE cible (il valorise le digital, il comprendra la valeur de Maxence). On évalue l'ALIGNEMENT : complémentarité, non-concurrence, accès aux TPE/artisans locaux.
+
+RÈGLES GÉNÉRALES
+- Réponds UNIQUEMENT en JSON valide, rien avant ni après.
+- Français impeccable, ZÉRO faute (le soin du détail EST l'argument).
+- INTERDIT d'utiliser le tiret cadratin « — » ou demi-cadratin « – » où que ce soit : virgule, parenthèses, deux-points ou point à la place (le trait d'union « - » reste autorisé dans les mots composés).
+- Le nom de structure cité DOIT être exactement celui fourni. Jamais un autre.
+- JAMAIS d'affirmation invérifiable sur le partenaire (taille d'équipe, offre exacte, clientèle) : si les signaux ne le confirment pas, formule en conditionnel ou en généralité (« si vos clients… », « j'imagine que… »). Une affirmation fausse grille un partenaire.
+- Les faits viennent des signaux fournis (outil d'audit + avis Google + analyse visuelle). Tu organises et rédiges, tu n'inventes RIEN.
+
+SCORE /100 : potentiel de partenariat, axes pondérés selon le métier fourni.
+- comptable : non-concurrence garantie (poids neutralisé). Pondère surtout : volume de portefeuille probable (nbAvis Google, ancienneté visible) 35 %, clientèle TPE/artisans/indépendants (positionnement affiché) 30 %, proximité (Angers et périphérie = max) 20 %, contactabilité (email/tél/LinkedIn trouvés) 15 %.
+- graphiste : non-concurrence 30 % (branding/print/identité pur = max ; le moindre doute web = points_attention), accès TPE locales 25 %, réceptivité au web (site soigné = BONUS) 20 %, proximité 15 %, contactabilité 10 %.
+- adjacent (photographe pro, imprimeur, community manager sans dev, coach business) : complémentarité/recoupement de clientèle 35 %, non-concurrence 20 %, proximité 20 %, réceptivité au web 15 %, contactabilité 10 %. Plafonne vers 75 (cible secondaire) sauf alignement exceptionnel.
+- "visuel" fourni = VRAIE analyse de capture d'écran : site "moderne" = signal POSITIF (réceptivité). Site daté = léger malus de réceptivité, jamais un levier de pitch.
+- Signaux manquants (pas de site, pas d'avis) : ne les invente pas, score prudent + points_attention.
+
+ALERTE CONCURRENCE : si les signaux fournis (termes détectés sur son site, title, meta, visuel) montrent qu'il vend LUI-MÊME de la création/refonte de sites web → "alerte_concurrence": true et accroches VIDES ("").
+
+ACCROCHE_EMAIL : cold email de PAIR À PAIR (90-110 mots MAX), mené par LA DOULEUR DU PARTENAIRE, jamais par l'offre de Maxence. UN SEUL levier. Ton direct, bénéfice-led, zéro langage vendeur, pas d'ouverture narrative. Structure :
+1. « Objet : … » en 1re ligne (4-7 mots, curiosité ou bénéfice, pas de MAJUSCULES criardes), puis une ligne vide.
+2. Ouverture : "Bonjour, je suis Maxence, designer web à Angers." + UNE observation VRAIE et positive tirée des signaux (avis Google nombreux, positionnement, site soigné…).
+3. LE levier selon le métier (voir ANGLES), formulé autour de SA douleur, puis ce qu'il y gagne.
+4. Rémunération selon "modele_remu" : "reciprocite" = je lui renvoie des clients en retour (mes clients cherchent souvent un comptable/graphiste/photographe…) ; "commission" = commission d'apport simple et transparente ; "les_deux" = à sa main, évoqué légèrement. UNE phrase max, jamais insistante, jamais de pourcentage inventé.
+5. CTA à faible engagement : un café ou un appel de 15 min, choix binaire de créneau (« plutôt mardi ou jeudi ? »).
+6. Ligne vide puis « Maxence » seul. Corps en 2-3 paragraphes courts séparés par des lignes vides (\\n\\n), jamais un bloc dense.
+
+ANGLES PAR MÉTIER (le levier, PAS interchangeable) :
+- comptable : ses clients lui demandent « vous connaissez quelqu'un pour mon site ? » et répondre au hasard engage sa crédibilité. Levier : devenir SA réponse fiable à cette question ; il paraît conseiller complet, zéro effort, et Maxence lui renvoie les clients qui cherchent un comptable. Ouvre sur le service à SES clients et sa position de conseil, jamais sur le métier de Maxence. Rémunération : UNIQUEMENT la réciprocité (jamais de commission, sujet déontologique).
+- graphiste : un client veut « le pack complet » avec le site ; sans web, il perd le client ENTIER au profit d'une agence qui fait aussi l'identité. Levier : il garde le client et la direction artistique, Maxence livre un site fidèle à sa DA. Angle : défendre son portefeuille, proposer une offre complète sans embaucher. Reconnais son travail créatif (pair à pair, jamais condescendant).
+- adjacent : clientèles qui se recoupent, échange de recommandations naturel. Angle : partenariat mutuel, léger, sans engagement ni process. Message encore plus court et simple.
+
+ACCROCHE_LINKEDIN : même esprit, 2-3 phrases, encore plus directe, UN SEUL levier, pas d'objet.
+
+INTERDITS : critiquer son site ou son marketing ; parler de refonte ; empiler plusieurs leviers ; promettre un volume de leads ; citer un pourcentage de commission ; « audit gratuit » ; plus de 110 mots ; toute mention d'un outil interne : le message vient de Maxence Cailleau, personne physique, et de lui seul.
+
+Schéma : {"score":<0-100>,"atouts":["3 à 5 raisons courtes du score"],"points_attention":["0 à 3 réserves courtes"],"alerte_concurrence":<bool>,"accroche_email":"Objet : ...\\n\\n...","accroche_linkedin":"..."}`;
+
+export async function auditerPartenaire(input: {
+  nom: string;
+  ville?: string | null;
+  metier: string; // comptable | graphiste | adjacent (agence_web ne passe jamais ici)
+  activite?: string | null;
+  statutSite: string;
+  signaux: unknown;
+  offreWebTermes: string[]; // détection déterministe (audit.ts), source de vérité
+  nbAvis?: number | null;
+  noteGoogle?: number | null;
+  visuel?: { modernite: string; constat: string; pointsVisuels: string[] } | null;
+  modeleRemu: string; // commission | reciprocite | les_deux (forcé reciprocite si comptable)
+  stylesUtilisateur?: string[];
+}): Promise<{ ok: true; data: PartenaireAudit } | { ok: false; error: string }> {
+  const modeleRemu = input.metier === "comptable" ? "reciprocite" : input.modeleRemu;
+  const styleBloc =
+    input.stylesUtilisateur && input.stylesUtilisateur.length
+      ? "\n\nVoici des messages que l'utilisateur a RÉELLEMENT envoyés (à des clients " +
+        "finaux : le FOND diffère ici, n'imite que le ton, le vocabulaire et la longueur) :\n" +
+        input.stylesUtilisateur.map((m, i) => `Exemple ${i + 1} : « ${m} »`).join("\n")
+      : "";
+
+  const res = await chat({
+    provider: "deepseek",
+    jsonMode: true,
+    temperature: 0.6,
+    maxTokens: 900,
+    messages: [
+      { role: "system", content: SYS_PARTENAIRE + styleBloc },
+      {
+        role: "user",
+        content:
+          "Signaux du partenaire potentiel :\n" +
+          JSON.stringify(
+            {
+              structure: input.nom,
+              ville: input.ville ?? "",
+              metier: input.metier,
+              activite_detectee: input.activite ?? "",
+              statut_site: input.statutSite,
+              modele_remu: modeleRemu,
+              avis_google: { nombre: input.nbAvis ?? null, note: input.noteGoogle ?? null },
+              offre_web_detectee_sur_son_site: input.offreWebTermes,
+              signaux: input.signaux,
+              visuel: input.visuel ?? null,
+            },
+            null,
+            2,
+          ),
+      },
+    ],
+  });
+  if (!res.ok) return res;
+
+  try {
+    const raw = JSON.parse(res.text);
+    const score = Number(raw.score);
+    const alerte = Boolean(raw.alerte_concurrence);
+    const liste = (v: unknown) =>
+      Array.isArray(v) ? v.map((x: unknown) => String(x).trim()).filter(Boolean) : [];
+    return {
+      ok: true,
+      data: {
+        score: Number.isFinite(score) ? Math.max(0, Math.min(100, Math.round(score))) : null,
+        atouts: liste(raw.atouts),
+        pointsAttention: liste(raw.points_attention),
+        alerteConcurrence: alerte,
+        // Concurrent = stop : même si le modèle a rédigé quand même, on jette.
+        accrocheEmail: alerte ? "" : typeof raw.accroche_email === "string" ? raw.accroche_email.trim() : "",
+        accrocheLinkedin: alerte ? "" : typeof raw.accroche_linkedin === "string" ? raw.accroche_linkedin.trim() : "",
+      },
+    };
+  } catch {
+    return { ok: false, error: "Réponse IA illisible (JSON invalide)." };
+  }
+}
+
 // --- Enrichissement dirigeant + LinkedIn (Perplexity, optionnel) ---
 export async function enrichirDirigeant(input: {
   nom: string;

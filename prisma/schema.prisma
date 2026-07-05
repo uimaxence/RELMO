@@ -276,6 +276,9 @@ model Reglage {
   signatureEmail     String? // pied de signature (nom, site, tél…)
   optOutTexte        String? // mention opt-out RGPD (défaut : DEFAUT_OPT_OUT)
   lienRealisation    String? // URL de réalisation qui remplace [lien d'une réalisation]
+  // Prospection partenaires : modèle de rémunération proposé dans les pitchs.
+  // Forcé à « reciprocite » pour les experts-comptables (déontologie), quel que soit ce réglage.
+  modeleRemu         String  @default("reciprocite") // commission | reciprocite | les_deux
   updatedAt          DateTime @updatedAt
 }
 
@@ -299,6 +302,15 @@ model Prospect {
   secteur   String? // clé de secteur (habitat | sante | ...)
   campagne  String? // groupe/phase de prospection (ex. « Phase 1 ») pour trier
   placeId   String? @unique // identifiant Google Places (dédup)
+
+  // Mode V2 « partenaires » (apporteurs d'affaires). cible=client → flux V1 inchangé.
+  cible          String  @default("client") // client | partenaire
+  metier         String? // comptable | graphiste | agence_web | adjacent (si cible=partenaire)
+  flagConcurrent Boolean @default(false) // offre web détectée → jamais de pitch automatique
+  flagAQualifier Boolean @default(false) // agence web → qualification manuelle obligatoire
+  atouts         String? // raisons du score partenaire, jointes par " • "
+  nbAvis         Int? // nombre d'avis Google (proxy volume de portefeuille)
+  noteGoogle     Float? // note moyenne Google
 
   // Audit du site (rempli à la demande)
   statutAudit      String  @default("a_auditer") // a_auditer | ok | aucun_site | erreur
@@ -330,6 +342,7 @@ model Prospect {
   @@index([secteur])
   @@index([statut])
   @@index([score])
+  @@index([cible])
 }
 
 // To-do quotidienne générée (F12).

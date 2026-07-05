@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/select";
 import { REGIONS, REGION_DEFAUT, REGION_OPTIONS } from "@/lib/prospection/regions";
 import { SECTEUR_OPTIONS, SECTEUR_DEFAUT } from "@/lib/prospection/secteurs";
+import { METIER_OPTIONS, METIER_DEFAUT } from "@/lib/prospection/metiers-partenaires";
 import {
   collecterProspects,
   importerProspectsCsv,
@@ -44,7 +45,9 @@ export function RechercheToolbar({
   nbAAuditer: number;
 }) {
   const [region, setRegion] = useState(REGION_DEFAUT);
+  const [cible, setCible] = useState("client"); // client final (V1) | partenaire (V2)
   const [secteur, setSecteur] = useState(SECTEUR_DEFAUT);
+  const [metier, setMetier] = useState(METIER_DEFAUT);
   const [ville, setVille] = useState(REGIONS[REGION_DEFAUT][0]);
   const [pages, setPages] = useState("1");
   const [campagne, setCampagne] = useState("Phase 1");
@@ -93,6 +96,8 @@ export function RechercheToolbar({
         villes: villesCible,
         pages: Number(pages),
         campagne,
+        cible,
+        metier: cible === "partenaire" ? metier : undefined,
       });
       if (!res.ok) {
         toast.error(res.error ?? "Échec de la collecte.");
@@ -131,7 +136,20 @@ export function RechercheToolbar({
           />
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+          <div className="space-y-1.5">
+            <Label>Cible</Label>
+            <Select value={cible} onValueChange={setCible}>
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="client">Client final</SelectItem>
+                <SelectItem value="partenaire">Partenaire (apporteur)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
           <div className="space-y-1.5">
             <Label>Région</Label>
             <Select value={region} onValueChange={onRegionChange}>
@@ -148,21 +166,39 @@ export function RechercheToolbar({
             </Select>
           </div>
 
-          <div className="space-y-1.5">
-            <Label>Secteur</Label>
-            <Select value={secteur} onValueChange={setSecteur}>
-              <SelectTrigger className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {SECTEUR_OPTIONS.map((o) => (
-                  <SelectItem key={o.value} value={o.value}>
-                    {o.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          {cible === "client" ? (
+            <div className="space-y-1.5">
+              <Label>Secteur</Label>
+              <Select value={secteur} onValueChange={setSecteur}>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {SECTEUR_OPTIONS.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>
+                      {o.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ) : (
+            <div className="space-y-1.5">
+              <Label>Métier</Label>
+              <Select value={metier} onValueChange={setMetier}>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {METIER_OPTIONS.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>
+                      {o.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           <div className="space-y-1.5">
             <Label>Ville</Label>
@@ -202,8 +238,10 @@ export function RechercheToolbar({
           </Button>
 
           <ImportCsvDialog
-            secteur={secteur}
+            secteur={cible === "client" ? secteur : undefined}
             campagne={campagne}
+            cible={cible}
+            metier={cible === "partenaire" ? metier : undefined}
             onImported={boucleAudit}
             disabled={looping || pending}
           />
@@ -255,11 +293,15 @@ export function RechercheToolbar({
 function ImportCsvDialog({
   secteur,
   campagne,
+  cible,
+  metier,
   onImported,
   disabled,
 }: {
-  secteur: string;
+  secteur?: string;
   campagne: string;
+  cible: string;
+  metier?: string;
   onImported: () => void | Promise<void>;
   disabled?: boolean;
 }) {
@@ -269,7 +311,7 @@ function ImportCsvDialog({
 
   function importer() {
     start(async () => {
-      const res = await importerProspectsCsv(csv, secteur, campagne);
+      const res = await importerProspectsCsv(csv, { secteur, campagne, cible, metier });
       if (res.ok) {
         toast.success(
           `${res.ajoutes} prospect(s) importé(s) (${res.total} lignes). Audit en cours…`,

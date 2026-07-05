@@ -18,12 +18,15 @@ export const dynamic = "force-dynamic";
 export default async function CampagnePage() {
   const [reglage, prospects] = await Promise.all([
     ensureReglage(),
-    // File d'envoi : prospects mis en file (statut « à contacter ») avec accroche prête.
+    // File d'envoi : prospects mis en file (statut « à contacter ») avec accroche
+    // prête. Les fiches « concurrent » ou « à qualifier » n'y entrent JAMAIS.
     prisma.prospect.findMany({
       where: {
         statut: "a_contacter",
         statutAudit: { in: ["ok", "aucun_site"] },
         accrocheEmail: { not: null },
+        flagConcurrent: false,
+        flagAQualifier: false,
       },
       orderBy: [{ score: "desc" }, { createdAt: "desc" }],
       take: 300,
@@ -61,6 +64,7 @@ export default async function CampagnePage() {
         signatureEmail={reglage.signatureEmail}
         optOutTexte={reglage.optOutTexte}
         lienRealisation={reglage.lienRealisation}
+        modeleRemu={reglage.modeleRemu}
       />
 
       {!reglage.lienRealisation ? (

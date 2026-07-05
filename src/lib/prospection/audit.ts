@@ -29,11 +29,19 @@ export type Contacts = {
   bestEmail: string;
 };
 
+// Détection déterministe d'une offre de création de sites web (mode partenaire :
+// concurrent = stop). C'est CE verdict qui fait foi, jamais l'IA seule.
+export type OffreWeb = {
+  detectee: boolean;
+  termes: string[]; // expressions trouvées sur la home (traçabilité du flag)
+};
+
 export type AuditResult = {
   statut: "ok" | "aucun_site" | "erreur";
   error?: string;
   signals: Partial<Signaux>;
   contacts: Contacts;
+  offreWeb: OffreWeb;
 };
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -159,11 +167,42 @@ function buildSignaux(html: string, finalUrl: string): Signaux {
   };
 }
 
+// Expressions qui trahissent une OFFRE web (pas une simple mention « notre site
+// internet ») : verbes de prestation + métiers du web. Volontairement strictes
+// pour éviter les faux positifs sur un graphiste print qui parle de son propre site.
+const OFFRE_WEB_PATTERNS: { re: RegExp; terme: string }[] = [
+  { re: /(cr[eé]ation|conception|r[eé]alisation|refonte)\s+de\s+sites?/i, terme: "création/refonte de site" },
+  { re: /(cr[eé]ons|r[eé]alisons|concevons)\s+(vos|des|votre)\s+sites?/i, terme: "création de sites (offre)" },
+  { re: /d[eé]veloppe(ment|ur|use)s?\s+web/i, terme: "développement web" },
+  { re: /web\s?design(er|use)?/i, terme: "webdesign" },
+  { re: /sites?\s+(vitrines?|e-?commerce|sur\s+mesure)/i, terme: "site vitrine / e-commerce" },
+  { re: /votre\s+(futur\s+)?site\s+(internet|web)/i, terme: "« votre site internet »" },
+  { re: /agence\s+(web|digitale|num[eé]rique)/i, terme: "agence web/digitale" },
+];
+
+// Analyse la home et renvoie les expressions d'offre web trouvées (dédupliquées).
+export function detecterOffreWeb(html: string): OffreWeb {
+  const texte = html
+    .replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]+>/g, " ");
+  const termes = [...new Set(OFFRE_WEB_PATTERNS.filter((p) => p.re.test(texte)).map((p) => p.terme))];
+  return { detectee: termes.length > 0, termes };
+}
+
+const emptyOffreWeb: OffreWeb = { detectee: false, termes: [] };
+
 const emptyContacts: Contacts = { emails: [], phones: [], siret: null, bestEmail: "" };
 
 export async function analyzeSite(rawUrl: string | null | undefined): Promise<AuditResult> {
   const url = normalizeUrl(rawUrl);
-  if (!url) return { statut: "aucun_site", signals: {}, contacts: { ...emptyContacts } };
+  if (!url) {
+    return {
+      statut: "aucun_site",
+      signals: {},
+      contacts: { ...emptyContacts },
+      offreWeb: { ...emptyOffreWeb },
+    };
+  }
 
   const res = await fetchHtml(url);
   if (!res.ok || !res.html) {
@@ -172,6 +211,7 @@ export async function analyzeSite(rawUrl: string | null | undefined): Promise<Au
       error: res.error || `HTTP ${res.status}`,
       signals: { url },
       contacts: { ...emptyContacts },
+      offreWeb: { ...emptyOffreWeb },
     };
   }
 
@@ -209,5 +249,5 @@ export async function analyzeSite(rawUrl: string | null | undefined): Promise<Au
     bestEmail: pickEmail(emailList, host),
   };
 
-  return { statut: "ok", signals, contacts };
+  return { statut: "ok", signals, contacts, offreWeb: detecterOffreWeb(res.html) };
 }
