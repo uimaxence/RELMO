@@ -83,6 +83,11 @@ export const METIERS_PARTENAIRES: MetierPartenaire[] = [
 
 export const METIER_DEFAUT = "comptable";
 
+// Commission d'apport reversée au partenaire : UNIQUEMENT sur le prix de la
+// création du site (paiement unique), jamais sur l'abonnement mensuel (protège
+// le MRR). Ne s'applique pas aux experts-comptables (réciprocité, déontologie).
+export const COMMISSION_CREATION_PCT = 20;
+
 export function metierByCle(cle: string): MetierPartenaire | undefined {
   return METIERS_PARTENAIRES.find((m) => m.cle === cle);
 }
@@ -95,7 +100,7 @@ export const METIER_OPTIONS = METIERS_PARTENAIRES.map((m) => ({
 // Modèles de rémunération proposables dans un pitch partenaire.
 export const MODELES_REMU = [
   { value: "reciprocite", label: "Réciprocité (échange de recommandations)" },
-  { value: "commission", label: "Commission d'apport" },
+  { value: "commission", label: `Commission (${COMMISSION_CREATION_PCT}% de la création)` },
   { value: "les_deux", label: "Les deux (au choix du partenaire)" },
 ] as const;
 

@@ -5,6 +5,7 @@ import { euros } from "@/lib/format";
 import { labelOf, SOURCES, CANAUX, DEVIS_STATUTS } from "@/lib/constants";
 import { currentPeriode } from "@/lib/periode";
 import { currentWeek } from "@/lib/semaine";
+import { COMMISSION_CREATION_PCT } from "@/lib/prospection/metiers-partenaires";
 
 // Couche métier de l'assistant (cf. docs/IA.md §5). Chaque fonction charge le
 // contexte structuré depuis la DB, construit le prompt, et route vers le bon
@@ -537,7 +538,7 @@ ACCROCHE_EMAIL : cold email de PAIR À PAIR (90-110 mots MAX), mené par LA DOUL
 1. « Objet : … » en 1re ligne (4-7 mots, curiosité ou bénéfice, pas de MAJUSCULES criardes), puis une ligne vide.
 2. Ouverture : "Bonjour, je suis Maxence, designer web à Angers." + UNE observation VRAIE et positive tirée des signaux (avis Google nombreux, positionnement, site soigné…).
 3. LE levier selon le métier (voir ANGLES), formulé autour de SA douleur, puis ce qu'il y gagne.
-4. Rémunération selon "modele_remu" : "reciprocite" = je lui renvoie des clients en retour (mes clients cherchent souvent un comptable/graphiste/photographe…) ; "commission" = commission d'apport simple et transparente ; "les_deux" = à sa main, évoqué légèrement. UNE phrase max, jamais insistante, jamais de pourcentage inventé.
+4. Rémunération selon "modele_remu". "reciprocite" = je lui renvoie des clients en retour (mes clients cherchent souvent un comptable/graphiste/photographe…). "commission" = je lui reverse le taux fourni dans "commission_creation_pct" du prix de la création du site (paiement unique), pour chaque client apporté, JAMAIS sur l'abonnement mensuel. "les_deux" = les deux, à sa main. UNE seule phrase, posée simplement comme une information neutre, jamais insistante : aucune relance, aucun argumentaire du type « c'est tout benef pour toi », aucun superlatif. Si "commission_creation_pct" est absent (ex. expert-comptable), n'évoque AUCUNE commission.
 5. CTA à faible engagement : un café ou un appel de 15 min, choix binaire de créneau (« plutôt mardi ou jeudi ? »).
 6. Ligne vide puis « Maxence » seul. Corps en 2-3 paragraphes courts séparés par des lignes vides (\\n\\n), jamais un bloc dense.
 
@@ -548,7 +549,7 @@ ANGLES PAR MÉTIER (le levier, PAS interchangeable) :
 
 ACCROCHE_LINKEDIN : même esprit, 2-3 phrases, encore plus directe, UN SEUL levier, pas d'objet.
 
-INTERDITS : critiquer son site ou son marketing ; parler de refonte ; empiler plusieurs leviers ; promettre un volume de leads ; citer un pourcentage de commission ; « audit gratuit » ; plus de 110 mots ; toute mention d'un outil interne : le message vient de Maxence Cailleau, personne physique, et de lui seul.
+INTERDITS : critiquer son site ou son marketing ; parler de refonte ; empiler plusieurs leviers ; promettre un volume de leads ; inventer un taux de commission (n'emploie QUE celui fourni) ou l'appliquer à l'abonnement mensuel ; faire de l'argent le cœur du message ou insister dessus ; « audit gratuit » ; plus de 110 mots ; toute mention d'un outil interne : le message vient de Maxence Cailleau, personne physique, et de lui seul.
 
 Schéma : {"score":<0-100>,"atouts":["3 à 5 raisons courtes du score"],"points_attention":["0 à 3 réserves courtes"],"alerte_concurrence":<bool>,"accroche_email":"Objet : ...\\n\\n...","accroche_linkedin":"..."}`;
 
@@ -567,6 +568,12 @@ export async function auditerPartenaire(input: {
   stylesUtilisateur?: string[];
 }): Promise<{ ok: true; data: PartenaireAudit } | { ok: false; error: string }> {
   const modeleRemu = input.metier === "comptable" ? "reciprocite" : input.modeleRemu;
+  // Taux de commission transmis au modèle seulement si le mode le prévoit (et
+  // jamais pour les comptables) : sinon le pitch ne doit citer aucune commission.
+  const commissionPct =
+    modeleRemu === "commission" || modeleRemu === "les_deux"
+      ? COMMISSION_CREATION_PCT
+      : null;
   const styleBloc =
     input.stylesUtilisateur && input.stylesUtilisateur.length
       ? "\n\nVoici des messages que l'utilisateur a RÉELLEMENT envoyés (à des clients " +
@@ -593,6 +600,7 @@ export async function auditerPartenaire(input: {
               activite_detectee: input.activite ?? "",
               statut_site: input.statutSite,
               modele_remu: modeleRemu,
+              commission_creation_pct: commissionPct ? `${commissionPct}%` : null,
               avis_google: { nombre: input.nbAvis ?? null, note: input.noteGoogle ?? null },
               offre_web_detectee_sur_son_site: input.offreWebTermes,
               signaux: input.signaux,
