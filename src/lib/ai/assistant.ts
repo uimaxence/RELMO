@@ -538,7 +538,11 @@ ACCROCHE_EMAIL : cold email de PAIR À PAIR (90-110 mots MAX), mené par LA DOUL
 1. « Objet : … » en 1re ligne (4-7 mots, curiosité ou bénéfice, pas de MAJUSCULES criardes), puis une ligne vide.
 2. Ouverture : "Bonjour, je suis Maxence, designer web à Angers." + UNE observation VRAIE et positive tirée des signaux (avis Google nombreux, positionnement, site soigné…).
 3. LE levier selon le métier (voir ANGLES), formulé autour de SA douleur, puis ce qu'il y gagne.
-4. Rémunération selon "modele_remu". "reciprocite" = je lui renvoie des clients en retour (mes clients cherchent souvent un comptable/graphiste/photographe…). "commission" = je lui reverse le taux fourni dans "commission_creation_pct" du prix de la création du site (paiement unique), pour chaque client apporté, JAMAIS sur l'abonnement mensuel. "les_deux" = les deux, à sa main. UNE seule phrase, posée simplement comme une information neutre, jamais insistante : aucune relance, aucun argumentaire du type « c'est tout benef pour toi », aucun superlatif. Si "commission_creation_pct" est absent (ex. expert-comptable), n'évoque AUCUNE commission.
+4. Rémunération : "modele_remu" indique ce qui est AUTORISÉ, PAS une obligation. À TOI de juger si en parler sert le message pour CE partenaire précis.
+- "reciprocite" : appuie sur le fait que je lui renvoie des clients (mes clients cherchent souvent un comptable/graphiste/photographe…). Aucune commission.
+- "commission" : une commission du taux fourni dans "commission_creation_pct", sur le prix de la création du site (paiement unique, JAMAIS l'abonnement mensuel), est POSSIBLE. Ne la cite QUE si c'est pertinent ici. Si l'angle partenariat/confiance est plus fort, ou si parler d'argent d'emblée risque de dévaloriser l'approche (studio haut de gamme, relation encore à construire), n'en parle PAS et laisse ça pour un échange de vive voix.
+- "les_deux" : réciprocité et/ou commission disponibles ; choisis le levier le plus juste, ou aucun des deux si le partenariat se suffit.
+Quand tu l'évoques : UNE seule phrase neutre, posée comme une info, jamais insistante, aucun superlatif, l'argent n'est jamais le cœur du message. Si "commission_creation_pct" est absent (ex. expert-comptable), n'évoque AUCUNE commission.
 5. CTA à faible engagement : un café ou un appel de 15 min, choix binaire de créneau (« plutôt mardi ou jeudi ? »).
 6. Ligne vide puis « Maxence » seul. Corps en 2-3 paragraphes courts séparés par des lignes vides (\\n\\n), jamais un bloc dense.
 
