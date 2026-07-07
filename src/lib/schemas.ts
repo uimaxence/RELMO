@@ -158,6 +158,8 @@ export const reglageCampagneSchema = z.object({
   lienRealisation: nullableText,
   // Pitch partenaire : rémunération proposée (réciprocité forcée pour les comptables).
   modeleRemu: z.enum(["commission", "reciprocite", "les_deux"]).catch("reciprocite"),
+  // Interrupteur des relances automatiques (checkbox : "on" si cochée, absente sinon).
+  relanceAutoActive: z.preprocess((v) => v === "on" || v === "true" || v === true, z.boolean()),
 });
 
 export const objectifSchema = z.object({

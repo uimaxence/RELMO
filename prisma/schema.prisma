@@ -279,6 +279,8 @@ model Reglage {
   // Prospection partenaires : modèle de rémunération proposé dans les pitchs.
   // Forcé à « reciprocite » pour les experts-comptables (déontologie), quel que soit ce réglage.
   modeleRemu         String  @default("reciprocite") // commission | reciprocite | les_deux
+  // Relances automatiques (cron). OFF par défaut : rien ne part tant qu'on ne l'active pas ici.
+  relanceAutoActive  Boolean  @default(false)
   updatedAt          DateTime @updatedAt
 }
 
@@ -332,7 +334,10 @@ model Prospect {
   contacteLe     DateTime? // 1er message envoyé (mail/LinkedIn/DM)
   relanceLe      DateTime? // prochaine relance prévue (contacteLe + 5 j, puis reconduite)
   relanceFaiteLe DateTime? // dernière relance effectuée
-  reponduLe      DateTime? // 1re réponse reçue (dénominateur du taux de réponse — cf. brief §2)
+  reponduLe      DateTime? // 1re réponse reçue (détectée par IMAP ou saisie manuelle) — dénominateur du taux de réponse
+  optOutLe       DateTime? // a répondu STOP / demandé à ne plus être contacté — plus jamais de relance
+  dernierMessageId String? // Message-ID du dernier mail envoyé (match des réponses + threading des relances)
+  dernierObjet     String? // objet du dernier mail envoyé (relance répondue dans le même fil : « Re: … »)
   nbRelances     Int       @default(0)
   clientId       String? // Client créé à la conversion (lien souple, pas de FK)
   note           String?

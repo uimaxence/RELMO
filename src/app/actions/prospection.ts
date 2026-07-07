@@ -660,6 +660,8 @@ export async function envoyerMailProspect(
       relanceLe: relance,
       relanceFaiteLe: null,
       messageEnvoye: corps,
+      dernierMessageId: res.messageId ?? undefined,
+      dernierObjet: objet,
     },
   });
   revalidatePath(PAGE);

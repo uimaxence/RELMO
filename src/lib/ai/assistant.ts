@@ -163,6 +163,40 @@ export async function genererRelanceNego(devisId: string): Promise<AiResult> {
   return chat({ provider: "deepseek", messages, temperature: 0.5 });
 }
 
+// --- Relance de prospection à froid (DeepSeek) ---
+// Génère le message des relances automatiques (cron). Court, non insistant,
+// cohérent avec le 1er mail. Commence par « Objet : … » pour être assemblé par
+// construireEmail (signature + opt-out ajoutés ensuite, comme pour le 1er envoi).
+export async function genererRelanceProspect(input: {
+  nom: string;
+  ville?: string | null;
+  activite?: string | null;
+  messagePrecedent?: string | null; // le 1er mail réellement envoyé
+  numero: number; // 1 = 1re relance, 2 = 2e (et dernière)
+}): Promise<AiResult> {
+  const derniere = input.numero >= 2;
+  const messages: AiMessage[] = [
+    { role: "system", content: VOIX },
+    {
+      role: "user",
+      content:
+        `Rédige la ${derniere ? "deuxième et DERNIÈRE" : "première"} relance d'une prospection à froid, ` +
+        `TRÈS courte (40 à 60 mots MAX), pour un prospect qui n'a pas répondu à un premier mail.\n` +
+        `Règles :\n` +
+        `- 1re ligne « Objet : ... » (4 à 6 mots, sans le mot « relance », un « Re : ... » léger convient).\n` +
+        `- Rappelle en une phrase l'idée du 1er message, sans le recopier.\n` +
+        `- UN SEUL angle neuf ou une question ouverte simple. Jamais insistant ni culpabilisant.\n` +
+        (derniere
+          ? `- Dernière relance : indique avec tact que tu n'insisteras plus, laisse la porte ouverte.\n`
+          : `- Propose une prochaine étape à très faible engagement (un créneau, une réponse d'un mot).\n`) +
+        `- Ni lien ni signature (ajoutés automatiquement). Deux courts paragraphes séparés par une ligne vide.\n\n` +
+        `Prospect : ${input.nom}${input.ville ? `, ${input.ville}` : ""}${input.activite ? ` (${input.activite})` : ""}\n` +
+        `Premier message envoyé :\n« ${(input.messagePrecedent ?? "").slice(0, 800)} »`,
+    },
+  ];
+  return chat({ provider: "deepseek", messages, temperature: 0.6, maxTokens: 400 });
+}
+
 // --- Intro de rapport mensuel client (DeepSeek), à partir du livré du mois ---
 export async function genererIntroRapport(
   clientId: string,

@@ -50,14 +50,19 @@ function transporter(): Transporter | null {
   return cached;
 }
 
-export type SendResult = { ok: true } | { ok: false; error: string };
+export type SendResult =
+  | { ok: true; messageId?: string }
+  | { ok: false; error: string };
 
 // Envoie un mail en texte brut. Renvoie une erreur claire plutôt que de throw.
+// En cas de succès, remonte le Message-ID (sert à matcher les réponses en IMAP).
 export async function sendMail(input: {
   to: string;
   subject: string;
   text: string;
   replyTo?: string;
+  inReplyTo?: string; // Message-ID du mail parent (threading des relances)
+  references?: string; // chaîne de Message-ID du fil
 }): Promise<SendResult> {
   const t = transporter();
   if (!t) {
@@ -70,14 +75,16 @@ export async function sendMail(input: {
     return { ok: false, error: "EMAIL_INVALIDE" };
   }
   try {
-    await t.sendMail({
+    const info = await t.sendMail({
       from: smtpFrom(),
       to: input.to.trim(),
       replyTo: input.replyTo || smtpFrom(),
       subject: input.subject,
       text: input.text,
+      inReplyTo: input.inReplyTo || undefined,
+      references: input.references || undefined,
     });
-    return { ok: true };
+    return { ok: true, messageId: info.messageId };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Échec de l'envoi." };
   }

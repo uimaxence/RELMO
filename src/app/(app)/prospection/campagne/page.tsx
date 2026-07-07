@@ -65,6 +65,7 @@ export default async function CampagnePage() {
         optOutTexte={reglage.optOutTexte}
         lienRealisation={reglage.lienRealisation}
         modeleRemu={reglage.modeleRemu}
+        relanceAutoActive={reglage.relanceAutoActive}
       />
 
       {!reglage.lienRealisation ? (

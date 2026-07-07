@@ -29,11 +29,13 @@ export function ReglageCampagneForm({
   optOutTexte,
   lienRealisation,
   modeleRemu,
+  relanceAutoActive,
 }: {
   signatureEmail: string | null;
   optOutTexte: string | null;
   lienRealisation: string | null;
   modeleRemu: string;
+  relanceAutoActive: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [state, formAction, pending] = useActionState(
@@ -122,6 +124,25 @@ export function ReglageCampagneForm({
                 className="min-h-[70px]"
               />
             </Field>
+            <div className="rounded-md border border-border bg-muted/30 p-3">
+              <label htmlFor="relanceAutoActive" className="flex items-start gap-3 text-sm">
+                <input
+                  id="relanceAutoActive"
+                  name="relanceAutoActive"
+                  type="checkbox"
+                  defaultChecked={relanceAutoActive}
+                  className="mt-0.5 size-4 shrink-0 accent-primary"
+                />
+                <span>
+                  <span className="font-medium">Relances automatiques</span>
+                  <span className="mt-0.5 block text-muted-foreground">
+                    Un cron quotidien relance les prospects sans réponse (2 relances max, espacées
+                    de 5 jours). Les réponses et les « STOP » sont détectés automatiquement
+                    (IMAP) pour ne jamais relancer quelqu&apos;un qui a répondu. Nécessite IMAP + CRON_SECRET.
+                  </span>
+                </span>
+              </label>
+            </div>
             <Button type="submit" disabled={pending}>
               {pending ? "Enregistrement…" : "Enregistrer"}
             </Button>

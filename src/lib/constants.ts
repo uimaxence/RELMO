@@ -151,6 +151,11 @@ export const PROSPECT_STATUTS: Option[] = [
 // Délai par défaut avant relance d'un prospect contacté (jours).
 export const PROSPECT_RELANCE_JOURS = 5;
 
+// Relances automatiques (cron quotidien). Garde-fous délivrabilité + réputation.
+export const RELANCE_MAX = 2; // relances auto max par prospect, puis on lâche
+export const RELANCE_AUTO_PLAFOND_JOUR = 12; // relances auto max par passage du cron
+export const RELANCE_AUTO_DELAI_SEC = 3; // délai entre deux envois de relance (throttle)
+
 export function labelOf(options: Option[], value: string): string {
   return options.find((o) => o.value === value)?.label ?? value;
 }
