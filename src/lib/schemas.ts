@@ -160,6 +160,8 @@ export const reglageCampagneSchema = z.object({
   modeleRemu: z.enum(["commission", "reciprocite", "les_deux"]).catch("reciprocite"),
   // Interrupteur des relances automatiques (checkbox : "on" si cochée, absente sinon).
   relanceAutoActive: z.preprocess((v) => v === "on" || v === "true" || v === true, z.boolean()),
+  // Interrupteur de la prospection automatique (découverte + audit → file d'envoi).
+  prospectionAutoActive: z.preprocess((v) => v === "on" || v === "true" || v === true, z.boolean()),
 });
 
 export const objectifSchema = z.object({

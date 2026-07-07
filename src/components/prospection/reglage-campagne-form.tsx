@@ -30,12 +30,14 @@ export function ReglageCampagneForm({
   lienRealisation,
   modeleRemu,
   relanceAutoActive,
+  prospectionAutoActive,
 }: {
   signatureEmail: string | null;
   optOutTexte: string | null;
   lienRealisation: string | null;
   modeleRemu: string;
   relanceAutoActive: boolean;
+  prospectionAutoActive: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [state, formAction, pending] = useActionState(
@@ -139,6 +141,26 @@ export function ReglageCampagneForm({
                     Un cron quotidien relance les prospects sans réponse (2 relances max, espacées
                     de 5 jours). Les réponses et les « STOP » sont détectés automatiquement
                     (IMAP) pour ne jamais relancer quelqu&apos;un qui a répondu. Nécessite IMAP + CRON_SECRET.
+                  </span>
+                </span>
+              </label>
+            </div>
+            <div className="rounded-md border border-border bg-muted/30 p-3">
+              <label htmlFor="prospectionAutoActive" className="flex items-start gap-3 text-sm">
+                <input
+                  id="prospectionAutoActive"
+                  name="prospectionAutoActive"
+                  type="checkbox"
+                  defaultChecked={prospectionAutoActive}
+                  className="mt-0.5 size-4 shrink-0 accent-primary"
+                />
+                <span>
+                  <span className="font-medium">Prospection automatique</span>
+                  <span className="mt-0.5 block text-muted-foreground">
+                    Deux fois par jour, découvre et audite de nouveaux prospects (4 secteurs,
+                    Pays de la Loire) et les met dans la file d&apos;envoi. Ceux avec email sont
+                    prêts à envoyer en 1 clic ; ceux sans email restent « à traiter » (tu complètes
+                    l&apos;adresse). Aucun envoi automatique. Nécessite GOOGLE_PLACES_API_KEY (et GEMINI_API_KEY).
                   </span>
                 </span>
               </label>

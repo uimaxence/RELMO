@@ -281,6 +281,9 @@ model Reglage {
   modeleRemu         String  @default("reciprocite") // commission | reciprocite | les_deux
   // Relances automatiques (cron). OFF par défaut : rien ne part tant qu'on ne l'active pas ici.
   relanceAutoActive  Boolean  @default(false)
+  // Prospection automatique (cron 2×/jour : découverte + audit → file d'envoi). OFF par défaut.
+  prospectionAutoActive Boolean @default(false)
+  prospectionRotation   Int     @default(0) // compteur de rotation villes/secteurs entre runs
   updatedAt          DateTime @updatedAt
 }
 

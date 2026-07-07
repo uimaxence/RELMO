@@ -66,6 +66,7 @@ export default async function CampagnePage() {
         lienRealisation={reglage.lienRealisation}
         modeleRemu={reglage.modeleRemu}
         relanceAutoActive={reglage.relanceAutoActive}
+        prospectionAutoActive={reglage.prospectionAutoActive}
       />
 
       {!reglage.lienRealisation ? (

@@ -156,6 +156,13 @@ export const RELANCE_MAX = 2; // relances auto max par prospect, puis on lâche
 export const RELANCE_AUTO_PLAFOND_JOUR = 12; // relances auto max par passage du cron
 export const RELANCE_AUTO_DELAI_SEC = 3; // délai entre deux envois de relance (throttle)
 
+// Prospection automatique (cron 2×/jour). Découverte multi-secteurs puis audit,
+// les prospects prêts (accroche générée) sont mis en file d'envoi (à valider en 1 clic).
+// AUCUN envoi automatique ici : seul l'utilisateur envoie depuis la file.
+export const PROSPECTION_AUTO_KEYWORDS_PAR_SECTEUR = 3; // mots-clés tirés par secteur et par run (borne le coût Google Places)
+export const PROSPECTION_AUTO_BUDGET_MS = 210_000; // budget d'audit par run (le backlog restant passe au run suivant)
+export const PROSPECTION_AUTO_MAX_ITER = 25; // garde-fou anti-boucle sur l'audit
+
 export function labelOf(options: Option[], value: string): string {
   return options.find((o) => o.value === value)?.label ?? value;
 }
