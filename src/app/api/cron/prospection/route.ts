@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { ensureReglage } from "@/lib/wishlist";
 import { collecterProspects, auditerNonAudites } from "@/app/actions/prospection";
 import { placesConfigured } from "@/lib/prospection/places";
+import { emailValide } from "@/lib/prospection/email";
 import { SECTEURS } from "@/lib/prospection/secteurs";
 import { REGIONS, REGION_DEFAUT } from "@/lib/prospection/regions";
 import {
@@ -113,10 +114,11 @@ export async function GET(req: Request) {
     if (Date.now() - start > PROSPECTION_AUTO_BUDGET_MS) break;
   }
 
-  // 3. Mise en file d'envoi : les audités prêts (accroche générée, non flaggés)
-  //    passent en « a_contacter » (à valider en 1 clic). Ceux sans email y restent
-  //    en « à traiter » (champ email à compléter dans la file).
-  const misEnFile = await prisma.prospect.updateMany({
+  // 3. Mise en file d'envoi : SEULS les audités prêts AVEC un email valide passent
+  //    en « a_contacter » (file prête à envoyer en 1 clic). Ceux SANS email restent
+  //    « nouveau » = bucket « à traiter » (filtre « Sans e-mail » de la recherche),
+  //    à compléter puis mettre en file manuellement.
+  const candidats = await prisma.prospect.findMany({
     where: {
       statut: "nouveau",
       statutAudit: { in: ["ok", "aucun_site"] },
@@ -124,22 +126,23 @@ export async function GET(req: Request) {
       flagConcurrent: false,
       flagAQualifier: false,
     },
-    data: { statut: "a_contacter" },
+    select: { id: true, email: true },
   });
+  const avecEmail = candidats.filter((p) => emailValide(p.email)).map((p) => p.id);
+  const misEnFile = avecEmail.length
+    ? (await prisma.prospect.updateMany({ where: { id: { in: avecEmail } }, data: { statut: "a_contacter" } })).count
+    : 0;
 
-  // Bilan de la file : combien sont prêts (email présent) vs à traiter (sans email).
-  const [fileTotale, sansEmail] = await Promise.all([
-    prisma.prospect.count({ where: { statut: "a_contacter" } }),
-    prisma.prospect.count({ where: { statut: "a_contacter", email: null } }),
-  ]);
+  const fileTotale = await prisma.prospect.count({ where: { statut: "a_contacter" } });
 
   return NextResponse.json({
     ok: true,
     decouverts,
     audites,
     backlogRestant: restants,
-    misEnFileCeRun: misEnFile.count,
-    file: { total: fileTotale, prets: fileTotale - sansEmail, aTraiterSansEmail: sansEmail },
+    misEnFileCeRun: misEnFile,
+    aTraiterSansEmail: candidats.length - avecEmail.length,
+    fileTotale,
     erreurs,
   });
 }
