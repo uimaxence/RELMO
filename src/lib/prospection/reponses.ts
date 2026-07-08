@@ -26,6 +26,24 @@ function normaliseId(id?: string | null): string {
   return (id || "").replace(/[<>]/g, "").trim().toLowerCase();
 }
 
+// Ne garde que le texte NOUVEAU d'une réponse (retire l'historique cité). Sinon
+// notre propre mention opt-out (« Répondez STOP ») recopiée dans la citation
+// déclencherait un faux positif STOP sur TOUTE réponse, même positive.
+function texteNouveau(brut: string): string {
+  const lignes = brut.replace(/\r\n/g, "\n").split("\n");
+  const out: string[] = [];
+  for (const l of lignes) {
+    if (/^\s*>/.test(l)) break; // citation « > … »
+    if (/^\s*Le\s.+a écrit\s*:/i.test(l)) break; // Gmail FR
+    if (/^\s*On\s.+wrote\s*:/i.test(l)) break; // Gmail EN
+    if (/^\s*-{2,}\s*(Message d'origine|Original Message)\s*-{2,}/i.test(l)) break;
+    if (/^_{5,}/.test(l)) break; // séparateur Outlook
+    if (out.length > 0 && /^\s*De\s*:\s/i.test(l)) break; // en-tête de citation Outlook FR
+    out.push(l);
+  }
+  return out.join("\n");
+}
+
 // Un prospect a-t-il demandé à ne plus être contacté ? (opt-out large et tolérant)
 function estStop(texte: string): boolean {
   const t = texte.toLowerCase();
@@ -116,7 +134,9 @@ export async function scannerReponses(): Promise<ScanResult> {
           const full = await client.fetchOne(String(m.uid), { source: true }, { uid: true });
           if (full && full.source) {
             const parsed = await simpleParser(full.source);
-            if (estStop(`${parsed.subject ?? ""} ${parsed.text ?? ""}`)) aStop.add(m.pid);
+            // STOP détecté uniquement sur le texte NOUVEAU (hors citation) : le
+            // sujet « Re: … » et l'historique cité ne doivent pas compter.
+            if (estStop(texteNouveau(parsed.text ?? ""))) aStop.add(m.pid);
           }
         } catch {
           // Corps illisible : on garde « répondu », on ne présume pas un STOP.
