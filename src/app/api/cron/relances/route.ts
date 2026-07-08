@@ -7,7 +7,7 @@ import { emailValide, construireEmail } from "@/lib/prospection/email";
 import { scannerReponses } from "@/lib/prospection/reponses";
 import { genererRelanceProspect } from "@/lib/ai/assistant";
 import {
-  PROSPECT_RELANCE_JOURS,
+  prochaineRelance,
   RELANCE_MAX,
   RELANCE_AUTO_PLAFOND_JOUR,
   RELANCE_AUTO_DELAI_SEC,
@@ -123,7 +123,7 @@ export async function GET(req: Request) {
       where: { id: p.id },
       data: {
         relanceFaiteLe: now,
-        relanceLe: new Date(now.getTime() + PROSPECT_RELANCE_JOURS * 86_400_000),
+        relanceLe: prochaineRelance(now),
         nbRelances: p.nbRelances + 1,
         dernierMessageId: res.messageId ?? undefined,
         dernierObjet: sujet,

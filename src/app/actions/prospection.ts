@@ -11,7 +11,7 @@ import { auditerProspect, auditerPartenaire, enrichirDirigeant } from "@/lib/ai/
 import { REGIONS, REGION_DEFAUT } from "@/lib/prospection/regions";
 import { secteurByCle } from "@/lib/prospection/secteurs";
 import { metierByCle, modeleRemuValide } from "@/lib/prospection/metiers-partenaires";
-import { PROSPECT_RELANCE_JOURS } from "@/lib/constants";
+import { prochaineRelance } from "@/lib/constants";
 import {
   sendMail,
   verifierSmtp,
@@ -546,7 +546,7 @@ export async function marquerContacte(
   canal: string = "email",
 ): Promise<{ ok: boolean; error?: string }> {
   const now = new Date();
-  const relance = new Date(now.getTime() + PROSPECT_RELANCE_JOURS * 86_400_000);
+  const relance = prochaineRelance(now);
   await prisma.prospect.update({
     where: { id },
     data: {
@@ -566,7 +566,7 @@ export async function marquerContacte(
 // « Relance faite » : reconduit la relance à +5 jours et incrémente le compteur.
 export async function marquerRelanceFaite(id: string): Promise<void> {
   const now = new Date();
-  const relance = new Date(now.getTime() + PROSPECT_RELANCE_JOURS * 86_400_000);
+  const relance = prochaineRelance(now);
   const p = await prisma.prospect.findUnique({
     where: { id },
     select: { nbRelances: true },
@@ -650,7 +650,7 @@ export async function envoyerMailProspect(
   if (!res.ok) return res;
 
   const now = new Date();
-  const relance = new Date(now.getTime() + PROSPECT_RELANCE_JOURS * 86_400_000);
+  const relance = prochaineRelance(now);
   await prisma.prospect.update({
     where: { id },
     data: {

@@ -151,6 +151,14 @@ export const PROSPECT_STATUTS: Option[] = [
 // Délai par défaut avant relance d'un prospect contacté (jours).
 export const PROSPECT_RELANCE_JOURS = 5;
 
+// Date de la prochaine relance : jour du contact + N jours, CALÉE À 7h UTC. Ainsi
+// le cron de relance (8h UTC) l'attrape toujours le matin du jour prévu, sans le
+// décalage au lendemain qu'entraînerait la conservation de l'heure du contact.
+export function prochaineRelance(from: Date = new Date()): Date {
+  const d = new Date(from.getTime() + PROSPECT_RELANCE_JOURS * 86_400_000);
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 7, 0, 0));
+}
+
 // Relances automatiques (cron quotidien). Garde-fous délivrabilité + réputation.
 export const RELANCE_MAX = 2; // relances auto max par prospect, puis on lâche
 export const RELANCE_AUTO_PLAFOND_JOUR = 12; // relances auto max par passage du cron
