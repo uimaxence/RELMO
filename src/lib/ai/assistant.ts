@@ -338,6 +338,9 @@ export type DevisExtraction = {
   montantCreation?: number;
   montantMensuelPropose?: number;
   note?: string;
+  clientNom?: string;
+  clientEmail?: string;
+  clientTelephone?: string;
 };
 
 function nombre(v: unknown): number | undefined {
@@ -375,6 +378,9 @@ export async function extraireDevisDepuisTexte(
           `- "montantCreation" : montant € one-shot de création/setup (number, 0 si absent)\n` +
           `- "montantMensuelPropose" : montant € de l'abonnement mensuel (number, 0 si absent)\n` +
           `- "note" : points clés / ce qui est inclus (string court)\n` +
+          `- "clientNom" : nom du client destinataire du devis, entreprise ou personne (string, "" si absent). Attention : PAS l'émetteur du devis (Maxence Cailleau), le DESTINATAIRE.\n` +
+          `- "clientEmail" : email du client destinataire (string, "" si absent)\n` +
+          `- "clientTelephone" : téléphone du client destinataire (string, "" si absent)\n` +
           `Montants en nombre, sans symbole ni séparateur de milliers. Texte du devis :\n\n${texte.slice(0, 6000)}`,
       },
     ],
@@ -392,6 +398,18 @@ export async function extraireDevisDepuisTexte(
         montantCreation: nombre(raw.montantCreation),
         montantMensuelPropose: nombre(raw.montantMensuelPropose),
         note: typeof raw.note === "string" ? raw.note.trim() : undefined,
+        clientNom:
+          typeof raw.clientNom === "string" && raw.clientNom.trim()
+            ? raw.clientNom.trim()
+            : undefined,
+        clientEmail:
+          typeof raw.clientEmail === "string" && raw.clientEmail.trim()
+            ? raw.clientEmail.trim()
+            : undefined,
+        clientTelephone:
+          typeof raw.clientTelephone === "string" && raw.clientTelephone.trim()
+            ? raw.clientTelephone.trim()
+            : undefined,
       },
     };
   } catch {

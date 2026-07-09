@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useRef, useState } from "react";
-import { Plus, UploadCloud, FileText, Loader2 } from "lucide-react";
+import { Plus, UploadCloud, FileText, Loader2, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -25,7 +25,11 @@ import {
 } from "@/components/ui/select";
 import { Field } from "@/components/forms/form-ui";
 import { createDevis, updateDevis } from "@/app/actions/devis";
-import { analyserPdfDevis } from "@/app/actions/devis-pdf";
+import {
+  analyserPdfDevis,
+  type ClientDetecte,
+} from "@/app/actions/devis-pdf";
+import { creerClientDepuisDevis } from "@/app/actions/clients";
 import { initialFormState, type FormState } from "@/lib/form";
 import { DEVIS_STATUTS, FORMULES } from "@/lib/constants";
 import { toDateInput } from "@/lib/format";
@@ -85,6 +89,40 @@ export function DevisFormDialog({
   const [formule, setFormule] = useState(devis?.formule ?? "none");
   const [pdfUrl, setPdfUrl] = useState(devis?.pdfUrl ?? "");
 
+  // Sélection client contrôlée (l'analyse PDF peut la piloter) + liste locale
+  // pour y ajouter un client créé en 1 clic sans attendre la revalidation.
+  const [clientId, setClientId] = useState(
+    devis?.clientId ?? defaultClientId ?? "",
+  );
+  const [clientsList, setClientsList] = useState<ClientOpt[]>(clients);
+
+  // Client repéré dans le PDF mais absent de la base : bannière de création.
+  const [nouveauClient, setNouveauClient] = useState<ClientDetecte | null>(null);
+  const [creationClient, setCreationClient] = useState(false);
+
+  async function creerClient() {
+    if (!nouveauClient) return;
+    setCreationClient(true);
+    const res = await creerClientDepuisDevis({
+      nom: nouveauClient.nom,
+      email: nouveauClient.email,
+      telephone: nouveauClient.telephone,
+    });
+    setCreationClient(false);
+    if (!res.ok) {
+      toast.error(res.error);
+      return;
+    }
+    setClientsList((list) =>
+      list.some((c) => c.id === res.id)
+        ? list
+        : [...list, { id: res.id, nom: res.nom }],
+    );
+    setClientId(res.id);
+    setNouveauClient(null);
+    toast.success(`Client « ${res.nom} » créé et sélectionné.`);
+  }
+
   // Choix d'une formule → pré-remplit les montants depuis les paliers courants
   // (éditable ensuite). Le Suivi est un abonnement seul (pas de création).
   function choisirFormule(value: string) {
@@ -141,7 +179,21 @@ export function DevisFormDialog({
       setMensuel(String(d.montantMensuelPropose));
     if (d.note) setNote(d.note);
     setPdfUrl(res.pdfUrl);
-    toast.success("Devis analysé — vérifie les champs avant d'enregistrer.");
+
+    // Client détecté dans le PDF : déjà en base → on le sélectionne ;
+    // inconnu → bannière de création en 1 clic.
+    setNouveauClient(null);
+    if (res.clientDetecte?.existantId) {
+      setClientId(res.clientDetecte.existantId);
+      toast.success(
+        `Devis analysé, client « ${res.clientDetecte.existantNom} » reconnu.`,
+      );
+    } else if (res.clientDetecte) {
+      setNouveauClient(res.clientDetecte);
+      toast.success("Devis analysé, nouveau client détecté.");
+    } else {
+      toast.success("Devis analysé, vérifie les champs avant d'enregistrer.");
+    }
   }
 
   return (
@@ -219,19 +271,47 @@ export function DevisFormDialog({
           />
         </div>
 
+        {/* Client du PDF absent de la base → création en 1 clic */}
+        {nouveauClient ? (
+          <div className="flex items-center justify-between gap-3 rounded-xl border border-brand/40 bg-brand/5 px-4 py-3 text-sm">
+            <div className="min-w-0">
+              <p className="font-medium">
+                Nouveau client détecté : {nouveauClient.nom}
+              </p>
+              {nouveauClient.email || nouveauClient.telephone ? (
+                <p className="truncate text-xs text-muted-foreground">
+                  {[nouveauClient.email, nouveauClient.telephone]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </p>
+              ) : null}
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              onClick={creerClient}
+              disabled={creationClient}
+            >
+              {creationClient ? (
+                <Loader2 className="animate-spin" />
+              ) : (
+                <UserPlus />
+              )}
+              Créer le client
+            </Button>
+          </div>
+        ) : null}
+
         <form action={formAction} className="space-y-5">
           <input type="hidden" name="pdfUrl" value={pdfUrl} />
           <div className="grid grid-cols-2 gap-4">
             <Field label="Client" required error={state?.fieldErrors?.clientId}>
-              <Select
-                name="clientId"
-                defaultValue={devis?.clientId ?? defaultClientId}
-              >
+              <Select name="clientId" value={clientId} onValueChange={setClientId}>
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Choisir…" />
                 </SelectTrigger>
                 <SelectContent>
-                  {clients.map((c) => (
+                  {clientsList.map((c) => (
                     <SelectItem key={c.id} value={c.id}>
                       {c.nom}
                     </SelectItem>
