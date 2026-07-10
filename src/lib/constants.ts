@@ -171,6 +171,26 @@ export const PROSPECTION_AUTO_KEYWORDS_PAR_SECTEUR = 3; // mots-clés tirés par
 export const PROSPECTION_AUTO_BUDGET_MS = 210_000; // budget d'audit par run (le backlog restant passe au run suivant)
 export const PROSPECTION_AUTO_MAX_ITER = 25; // garde-fou anti-boucle sur l'audit
 
+// Brief du portail client (F15) : univers visuels proposés en pastilles.
+// Le client en choisit au plus BRIEF_UNIVERS_MAX ; stockés joints par ", ".
+export const UNIVERS_VISUELS = [
+  "Minimaliste et épuré",
+  "Chaleureux et artisanal",
+  "Élégant, haut de gamme",
+  "Coloré et joyeux",
+  "Naturel, organique",
+  "Moderne et audacieux",
+  "Classique et rassurant",
+  "Doux et délicat",
+  "Brut, authentique",
+  "Ludique et décalé",
+] as const;
+export const BRIEF_UNIVERS_MAX = 3;
+
+// Dossier réservé aux fichiers du brief (logo, éléments visuels) : exclu de la
+// galerie photos mensuelle, affiché dans le bloc brief.
+export const DOSSIER_BRIEF = "brief";
+
 export function labelOf(options: Option[], value: string): string {
   return options.find((o) => o.value === value)?.label ?? value;
 }

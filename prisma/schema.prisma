@@ -23,6 +23,7 @@ model Client {
   notes     String?
   portailActif Boolean @default(false) // portail client (F15) activé ?
   portailToken String? @unique // lien magique (non devinable)
+  portailIntro String? // accueil personnalisé du portail (brouillon IA, édité par l'admin)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -31,6 +32,8 @@ model Client {
   interactions Interaction[]
   photos       Photo[]
   factures     Facture[]
+  brief        Brief?
+  updates      PortailUpdate[]
 }
 
 // Un site géré pour un client (1 client -> 0..n sites).
@@ -243,6 +246,43 @@ model Photo {
 
   @@index([clientId])
   @@index([dossier])
+}
+
+// --- Phase 2 : portail client (F15) — espace projet ---
+
+// Le brief de démarrage rempli par le client dans son portail (~5 min).
+// Un seul par client, ré-éditable : le client peut compléter ses réponses.
+model Brief {
+  id              String    @id @default(cuid())
+  clientId        String    @unique
+  daExistante     String? // direction artistique : oui | partiel | non
+  daUnivers       String? // univers visuels choisis parmi UNIVERS_VISUELS (max 3, joints par ", ")
+  daDetail        String? // couleurs, ambiance, ce qui existe déjà
+  charteExistante String? // charte graphique / logo : oui | non
+  charteDetail    String? // ce qui existe (logo, polices, document…)
+  sitesAimes      String? // sites de référence (concurrents ou non) + pourquoi
+  souhaits        String? // ce que le client aimerait voir
+  aEviter         String? // ce qu'il ne veut surtout pas
+  rempliLe        DateTime? // 1re soumission côté portail
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+}
+
+// Une actualité d'avancement publiée par l'admin dans l'espace projet du client.
+// Optionnellement notifiée par email (SMTP) à la publication.
+model PortailUpdate {
+  id            String    @id @default(cuid())
+  clientId      String
+  titre         String
+  contenu       String?
+  emailEnvoyeLe DateTime? // null = pas de mail envoyé pour cette actu
+  createdAt     DateTime  @default(now())
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([clientId])
 }
 
 // --- Bonus : wish-list / gamification (paliers de MRR) ---

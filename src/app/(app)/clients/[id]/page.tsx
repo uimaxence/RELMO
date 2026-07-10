@@ -23,6 +23,7 @@ import { InteractionFormDialog } from "@/components/forms/interaction-form-dialo
 import { ConfirmDelete } from "@/components/forms/confirm-delete";
 import { AiGenerateDialog } from "@/components/ai/ai-generate-dialog";
 import { PortailControl } from "@/components/portail/portail-control";
+import { EspaceProjetAdmin } from "@/components/portail/espace-projet-admin";
 import { FactureFormDialog } from "@/components/forms/facture-form-dialog";
 import { deleteFacture } from "@/app/actions/factures";
 import { Badge } from "@/components/ui/badge";
@@ -43,7 +44,14 @@ import {
 } from "@/components/status-badge";
 import { deleteContrat } from "@/app/actions/contrats";
 import { euros, dateFr } from "@/lib/format";
-import { labelOf, CANAUX, SOURCES, TACHE_TYPES, FACTURE_STATUTS } from "@/lib/constants";
+import {
+  labelOf,
+  CANAUX,
+  SOURCES,
+  TACHE_TYPES,
+  FACTURE_STATUTS,
+  DOSSIER_BRIEF,
+} from "@/lib/constants";
 import { currentPeriode } from "@/lib/periode";
 
 export const dynamic = "force-dynamic";
@@ -66,6 +74,9 @@ export default async function ClientDetailPage({
       devis: { orderBy: { updatedAt: "desc" } },
       factures: { orderBy: { dateEmission: "desc" } },
       interactions: { orderBy: { date: "desc" } },
+      brief: true,
+      updates: { orderBy: { createdAt: "desc" } },
+      photos: { where: { dossier: DOSSIER_BRIEF }, orderBy: { createdAt: "desc" } },
       _count: { select: { photos: true } },
     },
   });
@@ -172,6 +183,17 @@ export default async function ClientDetailPage({
         token={client.portailToken}
         nbPhotos={client._count.photos}
       />
+
+      {client.portailActif ? (
+        <EspaceProjetAdmin
+          clientId={client.id}
+          clientEmail={client.email}
+          intro={client.portailIntro}
+          brief={client.brief}
+          briefFiles={client.photos.map((p) => ({ id: p.id, url: p.url, nom: p.nom }))}
+          updates={client.updates}
+        />
+      ) : null}
 
       <div>
         <div className="mb-3 flex items-center justify-between">

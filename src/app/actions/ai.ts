@@ -10,6 +10,7 @@ import {
   genererRelanceNego,
   genererAccrochesProspection,
   genererIntroRapport,
+  genererIntroPortail,
   suggererTaches,
   type TacheSuggeree,
 } from "@/lib/ai/assistant";
@@ -41,6 +42,10 @@ export async function actionIntroRapport(
   livres: string[],
 ): Promise<AiResult> {
   return genererIntroRapport(clientId, periode, livres);
+}
+
+export async function actionIntroPortail(clientId: string): Promise<AiResult> {
+  return genererIntroPortail(clientId);
 }
 
 export async function actionSuggererTaches(): Promise<

@@ -1,5 +1,14 @@
 import { notFound } from "next/navigation";
-import { Globe, Images, Check, FileText, FileSignature } from "lucide-react";
+import {
+  Globe,
+  Images,
+  Check,
+  FileText,
+  FileSignature,
+  Sparkles,
+  ClipboardList,
+  Megaphone,
+} from "lucide-react";
 
 import { prisma } from "@/lib/db";
 import { totalStockage } from "@/app/actions/photos";
@@ -9,10 +18,12 @@ import {
   type GalleryGroup,
 } from "@/components/portail/portail-gallery";
 import { AccepterDevisButton } from "@/components/portail/accepter-devis-button";
+import { BriefForm } from "@/components/portail/brief-form";
+import { BriefUpload } from "@/components/portail/brief-upload";
 import { Badge } from "@/components/ui/badge";
 import { currentPeriode, periodeLabel } from "@/lib/periode";
 import { euros, dateFr } from "@/lib/format";
-import { labelOf, FACTURE_STATUTS } from "@/lib/constants";
+import { labelOf, FACTURE_STATUTS, DOSSIER_BRIEF } from "@/lib/constants";
 
 export const dynamic = "force-dynamic";
 
@@ -49,6 +60,8 @@ export default async function PortailPage({
         where: { statut: { in: ["envoye", "en_nego"] } },
         include: { contrat: { select: { id: true } } },
       },
+      brief: true,
+      updates: { orderBy: { createdAt: "desc" } },
     },
   });
 
@@ -79,9 +92,15 @@ export default async function PortailPage({
 
   const devisEnAttente = client.devis.filter((d) => !d.contrat);
 
+  // Fichiers du brief (logo, éléments visuels) : à part de la galerie mensuelle.
+  const briefFiles = client.photos
+    .filter((p) => p.dossier === DOSSIER_BRIEF)
+    .map((p) => ({ id: p.id, url: p.url, nom: p.nom }));
+
   // Photos groupées par mois.
   const byDossier = new Map<string, GalleryGroup["photos"]>();
   for (const p of client.photos) {
+    if (p.dossier === DOSSIER_BRIEF) continue;
     const arr = byDossier.get(p.dossier) ?? [];
     arr.push({ id: p.id, url: p.url, nom: p.nom });
     byDossier.set(p.dossier, arr);
@@ -125,6 +144,18 @@ export default async function PortailPage({
           </section>
         ) : null}
 
+        {/* Accueil personnalisé du projet (rédigé côté admin) */}
+        {client.portailIntro ? (
+          <section className="rounded-2xl border bg-background p-5">
+            <h2 className="mb-3 flex items-center gap-2 text-base font-semibold">
+              <Sparkles className="size-4 text-brand" /> Votre projet
+            </h2>
+            <p className="whitespace-pre-wrap text-sm leading-relaxed">
+              {client.portailIntro}
+            </p>
+          </section>
+        ) : null}
+
         {/* Devis en attente d'acceptation */}
         {devisEnAttente.length > 0 ? (
           <section className="rounded-2xl border bg-background p-5">
@@ -154,6 +185,54 @@ export default async function PortailPage({
                 </li>
               ))}
             </ul>
+          </section>
+        ) : null}
+
+        {/* Brief de démarrage (~5 min) */}
+        <section className="rounded-2xl border bg-background p-5">
+          <h2 className="mb-1 flex items-center gap-2 text-base font-semibold">
+            <ClipboardList className="size-4 text-brand" /> Préparons votre site
+          </h2>
+          <p className="mb-4 text-sm text-muted-foreground">
+            5 minutes pour nous parler de vos goûts : cela nous aide à créer un
+            site qui vous ressemble vraiment.
+          </p>
+          <BriefForm token={token} brief={client.brief} />
+          <div className="mt-5 border-t pt-5">
+            <p className="mb-1 text-sm font-medium">Votre logo et vos éléments visuels</p>
+            <p className="mb-3 text-xs text-muted-foreground">
+              Logo, charte, images d&apos;inspiration… (images ou PDF)
+            </p>
+            <BriefUpload token={token} files={briefFiles} />
+          </div>
+        </section>
+
+        {/* Journal d'avancement */}
+        {client.updates.length > 0 ? (
+          <section className="rounded-2xl border bg-background p-5">
+            <h2 className="mb-1 flex items-center gap-2 text-base font-semibold">
+              <Megaphone className="size-4 text-brand" /> Avancement de votre
+              projet
+            </h2>
+            <p className="mb-4 text-sm text-muted-foreground">
+              Les dernières nouvelles de votre site, au fil de l&apos;eau.
+            </p>
+            <ol className="relative space-y-5 border-l pl-5">
+              {client.updates.map((u) => (
+                <li key={u.id} className="relative">
+                  <span className="absolute -left-[26px] top-1.5 size-2.5 rounded-full border-2 border-background bg-brand" />
+                  <p className="text-xs text-muted-foreground">
+                    {dateFr(u.createdAt)}
+                  </p>
+                  <p className="text-sm font-medium">{u.titre}</p>
+                  {u.contenu ? (
+                    <p className="mt-0.5 whitespace-pre-wrap text-sm text-muted-foreground">
+                      {u.contenu}
+                    </p>
+                  ) : null}
+                </li>
+              ))}
+            </ol>
           </section>
         ) : null}
 

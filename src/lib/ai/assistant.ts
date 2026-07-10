@@ -197,6 +197,67 @@ export async function genererRelanceProspect(input: {
   return chat({ provider: "deepseek", messages, temperature: 0.6, maxTokens: 400 });
 }
 
+// --- Accueil de l'espace projet du portail client (DeepSeek) ---
+// Rédige le texte d'accueil personnalisé affiché en haut du portail : qui est le
+// client, l'objectif du projet, ce qu'on va faire. Brouillon édité par l'admin
+// avant publication (jamais montré au client sans relecture).
+export async function genererIntroPortail(clientId: string): Promise<AiResult> {
+  const c = await prisma.client.findUnique({
+    where: { id: clientId },
+    include: {
+      sites: true,
+      interactions: { orderBy: { date: "desc" }, take: 5 },
+      devis: {
+        where: { statut: { in: ["envoye", "en_nego", "accepte"] } },
+        orderBy: { updatedAt: "desc" },
+        take: 3,
+      },
+      brief: true,
+    },
+  });
+  if (!c) return { ok: false, error: "Client introuvable." };
+
+  const devisBloc = c.devis.length
+    ? c.devis
+        .map(
+          (d) =>
+            `- ${d.libelle} (${labelOf(DEVIS_STATUTS, d.statut)}) : création ${euros(d.montantCreation)}, abonnement ${euros(d.montantMensuelPropose)}/mois${d.note ? `. Contenu : ${d.note}` : ""}`,
+        )
+        .join("\n")
+    : "Aucun devis enregistré.";
+
+  const briefBloc = c.brief?.rempliLe
+    ? [
+        c.brief.daUnivers ? `Univers visuels choisis : ${c.brief.daUnivers}` : null,
+        c.brief.daDetail ? `Direction artistique : ${c.brief.daDetail}` : null,
+        c.brief.souhaits ? `Souhaits : ${c.brief.souhaits}` : null,
+        c.brief.aEviter ? `À éviter : ${c.brief.aEviter}` : null,
+      ]
+        .filter(Boolean)
+        .join("\n")
+    : "";
+
+  const messages: AiMessage[] = [
+    { role: "system", content: VOIX },
+    {
+      role: "user",
+      content:
+        `Rédige le court texte d'accueil (4-6 phrases, un ou deux paragraphes) de l'espace ` +
+        `projet en ligne du client « ${c.nom} ». Ce texte s'affiche en haut de son espace ` +
+        `privé : adresse-toi directement à lui (vouvoiement), à la 1re personne (je = Maxence, ` +
+        `son designer web). Contenu : souhaite-lui la bienvenue dans son espace, résume ` +
+        `l'objectif du projet et ce qu'on va faire concrètement (sans jargon, sans montants), ` +
+        `et invite-le à remplir le petit questionnaire de démarrage (5 minutes) plus bas sur ` +
+        `la page s'il ne l'a pas déjà fait. Ton chaleureux, léger, rassurant. Pas de titre, ` +
+        `pas de "Objet :", juste le texte.\n\n` +
+        `Client :\n${decritClient(c)}\n\nDevis / prestation prévue :\n${devisBloc}` +
+        (briefBloc ? `\n\nBrief déjà rempli par le client :\n${briefBloc}` : ""),
+    },
+  ];
+
+  return chat({ provider: "deepseek", messages, temperature: 0.5, maxTokens: 500 });
+}
+
 // --- Intro de rapport mensuel client (DeepSeek), à partir du livré du mois ---
 export async function genererIntroRapport(
   clientId: string,

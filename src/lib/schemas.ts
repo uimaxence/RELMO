@@ -164,6 +164,37 @@ export const reglageCampagneSchema = z.object({
   prospectionAutoActive: z.preprocess((v) => v === "on" || v === "true" || v === true, z.boolean()),
 });
 
+// Brief de démarrage rempli par le client dans son portail (F15).
+// Tout est optionnel : mieux vaut un brief partiel que pas de brief.
+export const briefSchema = z.object({
+  daExistante: z.preprocess(
+    (v) => (v === "" || v === "none" || v === null ? undefined : v),
+    z.enum(["oui", "partiel", "non"]).optional(),
+  ),
+  // Pastilles d'univers visuel, jointes par ", " (max 3, cf. BRIEF_UNIVERS_MAX).
+  daUnivers: optionalString,
+  daDetail: optionalString,
+  charteExistante: z.preprocess(
+    (v) => (v === "" || v === "none" || v === null ? undefined : v),
+    z.enum(["oui", "non"]).optional(),
+  ),
+  charteDetail: optionalString,
+  sitesAimes: optionalString,
+  souhaits: optionalString,
+  aEviter: optionalString,
+});
+
+// Actualité d'avancement publiée dans l'espace projet du client (F15).
+export const portailUpdateSchema = z.object({
+  clientId: z.string().min(1, requis),
+  titre: z.string().trim().min(1, requis),
+  contenu: optionalString,
+  // Checkbox "notifier par email" : "on" si cochée, absente sinon.
+  envoyerEmail: z.preprocess((v) => v === "on" || v === "true" || v === true, z.boolean()),
+  // Origine du site (window.location.origin) pour construire le lien du portail.
+  origin: optionalString,
+});
+
 export const objectifSchema = z.object({
   montantCible: montant("Cible invalide."),
   mrrDepart: montant("MRR de départ invalide."),
