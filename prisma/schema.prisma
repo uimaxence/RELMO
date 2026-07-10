@@ -256,7 +256,7 @@ model Brief {
   id              String    @id @default(cuid())
   clientId        String    @unique
   daExistante     String? // direction artistique : oui | partiel | non
-  daUnivers       String? // univers visuels choisis parmi UNIVERS_VISUELS (max 3, joints par ", ")
+  daUnivers       String? // univers visuels choisis parmi UNIVERS_VISUELS (max 3, joints par " · ")
   daDetail        String? // couleurs, ambiance, ce qui existe déjà
   charteExistante String? // charte graphique / logo : oui | non
   charteDetail    String? // ce qui existe (logo, polices, document…)

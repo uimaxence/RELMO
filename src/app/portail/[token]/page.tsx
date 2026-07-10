@@ -189,18 +189,20 @@ export default async function PortailPage({
         ) : null}
 
         {/* Brief de démarrage (~5 min) */}
-        <section className="rounded-2xl border bg-background p-5">
-          <h2 className="mb-1 flex items-center gap-2 text-base font-semibold">
-            <ClipboardList className="size-4 text-brand" /> Préparons votre site
+        <section className="rounded-2xl border bg-background p-6 sm:p-8">
+          <h2 className="font-heading flex items-center gap-2.5 text-xl font-semibold tracking-tight sm:text-2xl">
+            <ClipboardList className="size-5 text-brand" /> Préparons votre site
           </h2>
-          <p className="mb-4 text-sm text-muted-foreground">
+          <p className="mb-6 mt-1.5 text-sm text-muted-foreground sm:text-base">
             5 minutes pour nous parler de vos goûts : cela nous aide à créer un
             site qui vous ressemble vraiment.
           </p>
           <BriefForm token={token} brief={client.brief} />
-          <div className="mt-5 border-t pt-5">
-            <p className="mb-1 text-sm font-medium">Votre logo et vos éléments visuels</p>
-            <p className="mb-3 text-xs text-muted-foreground">
+          <div className="mt-8 border-t pt-6">
+            <p className="text-base font-medium">
+              Votre logo et vos éléments visuels
+            </p>
+            <p className="mb-4 mt-0.5 text-sm text-muted-foreground">
               Logo, charte, images d&apos;inspiration… (images ou PDF)
             </p>
             <BriefUpload token={token} files={briefFiles} />

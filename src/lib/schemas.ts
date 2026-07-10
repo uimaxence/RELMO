@@ -171,7 +171,7 @@ export const briefSchema = z.object({
     (v) => (v === "" || v === "none" || v === null ? undefined : v),
     z.enum(["oui", "partiel", "non"]).optional(),
   ),
-  // Pastilles d'univers visuel, jointes par ", " (max 3, cf. BRIEF_UNIVERS_MAX).
+  // Pastilles d'univers visuel, jointes par " · " (max 3, cf. BRIEF_UNIVERS_MAX).
   daUnivers: optionalString,
   daDetail: optionalString,
   charteExistante: z.preprocess(
