@@ -255,6 +255,9 @@ model Photo {
 model Brief {
   id              String    @id @default(cuid())
   clientId        String    @unique
+  ciblePublic     String? // à qui s'adresse le site : particuliers | professionnels | les_deux
+  cibleDetail     String? // client idéal en une phrase (qui, où)
+  objectifSite    String? // objectif n°1 du site, cf. OBJECTIFS_SITE
   daExistante     String? // direction artistique : oui | partiel | non
   daUnivers       String? // univers visuels choisis parmi UNIVERS_VISUELS (max 3, joints par " · ")
   daDetail        String? // couleurs, ambiance, ce qui existe déjà

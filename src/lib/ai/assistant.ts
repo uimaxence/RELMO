@@ -2,7 +2,14 @@ import { prisma } from "@/lib/db";
 import { chat, type AiMessage, type AiResult } from "@/lib/ai/client";
 import { ensureObjectif, computeObjectif } from "@/lib/objectif";
 import { euros } from "@/lib/format";
-import { labelOf, SOURCES, CANAUX, DEVIS_STATUTS } from "@/lib/constants";
+import {
+  labelOf,
+  SOURCES,
+  CANAUX,
+  DEVIS_STATUTS,
+  CIBLES_SITE,
+  OBJECTIFS_SITE,
+} from "@/lib/constants";
 import { currentPeriode } from "@/lib/periode";
 import { currentWeek } from "@/lib/semaine";
 import { COMMISSION_CREATION_PCT } from "@/lib/prospection/metiers-partenaires";
@@ -228,6 +235,14 @@ export async function genererIntroPortail(clientId: string): Promise<AiResult> {
 
   const briefBloc = c.brief?.rempliLe
     ? [
+        c.brief.ciblePublic
+          ? `Cible : ${labelOf(CIBLES_SITE, c.brief.ciblePublic)}${c.brief.cibleDetail ? ` (${c.brief.cibleDetail})` : ""}`
+          : c.brief.cibleDetail
+            ? `Cible : ${c.brief.cibleDetail}`
+            : null,
+        c.brief.objectifSite
+          ? `Objectif n°1 du site : ${labelOf(OBJECTIFS_SITE, c.brief.objectifSite)}`
+          : null,
         c.brief.daUnivers ? `Univers visuels choisis : ${c.brief.daUnivers}` : null,
         c.brief.daDetail ? `Direction artistique : ${c.brief.daDetail}` : null,
         c.brief.souhaits ? `Souhaits : ${c.brief.souhaits}` : null,

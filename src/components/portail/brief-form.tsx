@@ -9,11 +9,19 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { enregistrerBriefPortail } from "@/app/actions/portail";
 import { initialFormState, type FormState } from "@/lib/form";
-import { UNIVERS_VISUELS, BRIEF_UNIVERS_MAX } from "@/lib/constants";
+import {
+  UNIVERS_VISUELS,
+  BRIEF_UNIVERS_MAX,
+  CIBLES_SITE,
+  OBJECTIFS_SITE,
+} from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
 // Réponses existantes (sous-ensemble sérialisable du modèle Brief).
 export type BriefValues = {
+  ciblePublic: string | null;
+  cibleDetail: string | null;
+  objectifSite: string | null;
   daExistante: string | null;
   daUnivers: string | null;
   daDetail: string | null;
@@ -25,7 +33,7 @@ export type BriefValues = {
   rempliLe: Date | null;
 } | null;
 
-const NB_ETAPES = 4;
+const NB_ETAPES = 5;
 
 // Pastille de choix unique (façon onboarding) : grande, arrondie, coche visible.
 function Pastille({
@@ -99,6 +107,8 @@ export function BriefForm({
   const dejaRempli = Boolean(brief?.rempliLe);
   const [editing, setEditing] = useState(!dejaRempli);
   const [etape, setEtape] = useState(0);
+  const [cible, setCible] = useState(brief?.ciblePublic ?? "");
+  const [objectif, setObjectif] = useState(brief?.objectifSite ?? "");
   const [da, setDa] = useState(brief?.daExistante ?? "");
   const [charte, setCharte] = useState(brief?.charteExistante ?? "");
   // Pastilles d'univers visuel : au plus BRIEF_UNIVERS_MAX choix. Séparateur
@@ -181,8 +191,54 @@ export function BriefForm({
         </p>
       ) : null}
 
-      {/* Étape 1 : votre image aujourd'hui */}
+      {/* Étape 1 : vos clients et votre objectif */}
       <div className={cn("space-y-8", etape !== 0 && "hidden")}>
+        <input type="hidden" name="ciblePublic" value={cible} />
+        <input type="hidden" name="objectifSite" value={objectif} />
+        <Question titre="Votre site s'adresse plutôt à…">
+          <div className="flex flex-wrap gap-2.5">
+            {CIBLES_SITE.map((c) => (
+              <Pastille
+                key={c.value}
+                actif={cible === c.value}
+                onClick={() => setCible(cible === c.value ? "" : c.value)}
+              >
+                {c.label}
+              </Pastille>
+            ))}
+          </div>
+        </Question>
+        <Question
+          titre="Quel est l'objectif numéro 1 de votre site ?"
+          aide="Celui qui compte le plus, il guidera toute la construction."
+        >
+          <div className="flex flex-wrap gap-2.5">
+            {OBJECTIFS_SITE.map((o) => (
+              <Pastille
+                key={o.value}
+                actif={objectif === o.value}
+                onClick={() => setObjectif(objectif === o.value ? "" : o.value)}
+              >
+                {o.label}
+              </Pastille>
+            ))}
+          </div>
+        </Question>
+        <Question
+          titre="Votre client idéal, en une phrase ?"
+          aide="Qui est-il, où se trouve-t-il ? Facultatif."
+        >
+          <Input
+            name="cibleDetail"
+            defaultValue={brief?.cibleDetail ?? ""}
+            placeholder="Ex. des particuliers autour d'Angers qui rénovent leur maison"
+            className="h-11 rounded-xl text-base"
+          />
+        </Question>
+      </div>
+
+      {/* Étape 2 : votre image aujourd'hui */}
+      <div className={cn("space-y-8", etape !== 1 && "hidden")}>
         <input type="hidden" name="daExistante" value={da} />
         <input type="hidden" name="charteExistante" value={charte} />
         <Question titre="Avez-vous déjà une direction artistique ?">
@@ -220,8 +276,8 @@ export function BriefForm({
         </Question>
       </div>
 
-      {/* Étape 2 : l'univers qui vous ressemble */}
-      <div className={cn("space-y-8", etape !== 1 && "hidden")}>
+      {/* Étape 3 : l'univers qui vous ressemble */}
+      <div className={cn("space-y-8", etape !== 2 && "hidden")}>
         <input type="hidden" name="daUnivers" value={univers.join(" · ")} />
         <Question
           titre="Quel univers vous ressemble ?"
@@ -253,8 +309,8 @@ export function BriefForm({
         </Question>
       </div>
 
-      {/* Étape 3 : vos inspirations */}
-      <div className={cn("space-y-8", etape !== 2 && "hidden")}>
+      {/* Étape 4 : vos inspirations */}
+      <div className={cn("space-y-8", etape !== 3 && "hidden")}>
         <Question
           titre="Des sites que vous aimez ?"
           aide="Concurrents ou non : collez les liens et dites en un mot ce qui vous plaît."
@@ -279,8 +335,8 @@ export function BriefForm({
         </Question>
       </div>
 
-      {/* Étape 4 : vos envies */}
-      <div className={cn("space-y-8", etape !== 3 && "hidden")}>
+      {/* Étape 5 : vos envies */}
+      <div className={cn("space-y-8", etape !== 4 && "hidden")}>
         <Question titre="Qu'aimeriez-vous voir sur votre site ?">
           <Textarea
             name="souhaits"

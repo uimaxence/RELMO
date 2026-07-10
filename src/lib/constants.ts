@@ -171,6 +171,20 @@ export const PROSPECTION_AUTO_KEYWORDS_PAR_SECTEUR = 3; // mots-clés tirés par
 export const PROSPECTION_AUTO_BUDGET_MS = 210_000; // budget d'audit par run (le backlog restant passe au run suivant)
 export const PROSPECTION_AUTO_MAX_ITER = 25; // garde-fou anti-boucle sur l'audit
 
+// Brief du portail client (F15) : à qui s'adresse le site + objectif n°1.
+export const CIBLES_SITE: Option[] = [
+  { value: "particuliers", label: "Des particuliers" },
+  { value: "professionnels", label: "Des professionnels" },
+  { value: "les_deux", label: "Les deux" },
+];
+export const OBJECTIFS_SITE: Option[] = [
+  { value: "contact", label: "Recevoir des demandes (devis, rendez-vous)" },
+  { value: "google", label: "Être trouvé sur Google" },
+  { value: "credibilite", label: "Faire bonne impression, rassurer" },
+  { value: "realisations", label: "Montrer mes réalisations" },
+  { value: "vente", label: "Vendre en ligne" },
+];
+
 // Brief du portail client (F15) : univers visuels proposés en pastilles.
 // Le client en choisit au plus BRIEF_UNIVERS_MAX ; stockés joints par ", ".
 export const UNIVERS_VISUELS = [

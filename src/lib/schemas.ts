@@ -167,6 +167,15 @@ export const reglageCampagneSchema = z.object({
 // Brief de démarrage rempli par le client dans son portail (F15).
 // Tout est optionnel : mieux vaut un brief partiel que pas de brief.
 export const briefSchema = z.object({
+  ciblePublic: z.preprocess(
+    (v) => (v === "" || v === "none" || v === null ? undefined : v),
+    z.enum(["particuliers", "professionnels", "les_deux"]).optional(),
+  ),
+  cibleDetail: optionalString,
+  objectifSite: z.preprocess(
+    (v) => (v === "" || v === "none" || v === null ? undefined : v),
+    z.enum(["contact", "google", "credibilite", "realisations", "vente"]).optional(),
+  ),
   daExistante: z.preprocess(
     (v) => (v === "" || v === "none" || v === null ? undefined : v),
     z.enum(["oui", "partiel", "non"]).optional(),

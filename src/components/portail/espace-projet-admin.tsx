@@ -7,6 +7,7 @@ import { IntroProjetDialog } from "@/components/portail/intro-projet-dialog";
 import { UpdateFormDialog } from "@/components/portail/update-form-dialog";
 import { supprimerUpdate } from "@/app/actions/portail";
 import { dateFr } from "@/lib/format";
+import { labelOf, CIBLES_SITE, OBJECTIFS_SITE } from "@/lib/constants";
 import type { Brief, PortailUpdate } from "@/generated/prisma/client";
 
 const DA_LABELS: Record<string, string> = {
@@ -34,6 +35,16 @@ export function EspaceProjetAdmin({
 }) {
   const reponses: Array<{ label: string; value: string | null }> = brief
     ? [
+        {
+          label: "S'adresse à",
+          value: brief.ciblePublic
+            ? `${labelOf(CIBLES_SITE, brief.ciblePublic)}${brief.cibleDetail ? ` · ${brief.cibleDetail}` : ""}`
+            : brief.cibleDetail,
+        },
+        {
+          label: "Objectif n°1",
+          value: brief.objectifSite ? labelOf(OBJECTIFS_SITE, brief.objectifSite) : null,
+        },
         {
           label: "Direction artistique",
           value: brief.daExistante ? DA_LABELS[brief.daExistante] ?? brief.daExistante : null,
