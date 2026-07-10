@@ -11,6 +11,7 @@ export type VerdictVisuel = {
   modernite: string; // moderne | correct | date
   constat: string; // 1-2 phrases exploitables
   pointsVisuels: string[]; // défauts visuels précis
+  siteVisible: boolean; // false = capture = écran de chargement/blanc/erreur → verdict inexploitable
 };
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -40,11 +41,15 @@ async function capturerScreenshot(url: string): Promise<string | null> {
   const key = process.env.SCREENSHOTONE_KEY;
 
   if (key) {
+    // `wait_until=networkidle2` + `delay=3` : on attend que le réseau se calme et on
+    // laisse 3 s de plus aux splash/loaders JS de disparaître, sinon on photographie
+    // l'écran de chargement au lieu du vrai site.
     const endpoint =
       `https://api.screenshotone.com/take?access_key=${key}&url=${encodeURIComponent(cible)}` +
       `&format=jpg&viewport_width=1280&viewport_height=900&image_quality=72` +
+      `&wait_until=networkidle2&delay=3` +
       `&block_ads=true&block_cookie_banners=true&cache=true`;
-    const r = await grab(endpoint, 30_000);
+    const r = await grab(endpoint, 40_000);
     return r && r.buf.byteLength > 3_000
       ? `data:${r.mime};base64,${r.buf.toString("base64")}`
       : null;
@@ -65,7 +70,8 @@ async function capturerScreenshot(url: string): Promise<string | null> {
 }
 
 const SYS_VISUEL = `Tu es directeur artistique. On te montre la capture d'écran de la page d'accueil d'un site d'entreprise locale. Juge UNIQUEMENT le VISUEL / design (pas le contenu, pas le SEO). Sois honnête, concret et bref.
-Réponds UNIQUEMENT en JSON. "modernite" = UN SEUL mot, exactement "moderne" OU "correct" OU "date" (jamais les trois). Format : {"modernite":"date","constat":"1-2 phrases en français décrivant ce qui se voit (mise en page, typographie, couleurs, images, impression générale, rendu mobile si visible)","pointsVisuels":["2 à 4 défauts visuels précis, courts"]}.
+AVANT de juger : si la capture ne montre PAS le vrai site mais un écran de chargement (spinner, "loading", barre de progression), une page blanche/noire quasi vide, une erreur (404, 500, "site indisponible"), ou un mur de cookies/consentement qui masque tout, alors le design N'EST PAS visible : réponds {"siteVisible":false} et laisse les autres champs vides. Ne DÉCRIS JAMAIS un écran de chargement comme si c'était le design du site.
+Réponds UNIQUEMENT en JSON. "siteVisible" = true si le vrai site est visible et jugeable, false sinon. "modernite" = UN SEUL mot, exactement "moderne" OU "correct" OU "date" (jamais les trois). Format : {"siteVisible":true,"modernite":"date","constat":"1-2 phrases en français décrivant ce qui se voit (mise en page, typographie, couleurs, images, impression générale, rendu mobile si visible)","pointsVisuels":["2 à 4 défauts visuels précis, courts"]}.
 "date" = design qui fait visiblement ancien (années 2000-2010 : dégradés, polices système, images pixelisées ou étirées, mise en page rigide, trop chargé, boutons old-school). "correct" = propre mais sans caractère. "moderne" = épuré, aéré, typographie soignée, responsive.
 Français impeccable. INTERDIT d'utiliser le tiret cadratin « — » ou demi-cadratin « – » (virgule ou point à la place).`;
 
@@ -106,6 +112,13 @@ export async function analyseVisuelle(
 
   try {
     const raw = JSON.parse(nettoieJson(res.text));
+    // Capture inexploitable (écran de chargement, page blanche, erreur, mur cookies) :
+    // on jette le verdict → l'audit repasse en mode « design couvert » générique
+    // plutôt que d'écrire « votre site n'affiche qu'un écran de chargement ».
+    if (raw.siteVisible === false) {
+      if (process.env.RELMO_DEBUG) console.error("[visuel] site non visible (écran de chargement/erreur) pour", url);
+      return null;
+    }
     const constat = typeof raw.constat === "string" ? raw.constat.trim() : "";
     if (!constat) {
       if (process.env.RELMO_DEBUG) console.error("[visuel] constat vide. Texte:", res.text.slice(0, 300));
@@ -117,6 +130,7 @@ export async function analyseVisuelle(
       pointsVisuels: Array.isArray(raw.pointsVisuels)
         ? raw.pointsVisuels.map((p: unknown) => String(p).trim()).filter(Boolean)
         : [],
+      siteVisible: true,
     };
   } catch (e) {
     if (process.env.RELMO_DEBUG) console.error("[visuel] parse KO:", (e as Error).message, "| texte:", res.text.slice(0, 300));
