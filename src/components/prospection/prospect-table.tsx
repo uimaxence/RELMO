@@ -22,6 +22,7 @@ import {
   Undo2,
   MailX,
   MessageCircle,
+  Rocket,
   Search as SearchIcon,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -72,6 +73,7 @@ import {
   marquerReponse,
   updateEmailProspect,
   annulerProspect,
+  basculerSegmentProspect,
 } from "@/app/actions/prospection";
 import { emailValide } from "@/lib/prospection/email";
 
@@ -85,10 +87,21 @@ export type ProspectRow = {
   email: string | null;
   statutAudit: string;
   score: number | null;
+  filtreTier: string | null;
+  filtreTotal: number | null;
+  filtreBesoin: boolean | null;
+  filtrePotentiel: number | null;
+  filtreProbleme: number | null;
+  filtreCroissance: number | null;
+  filtreAcces: number | null;
+  filtreTrace: string | null;
+  effectif: number | null;
+  signauxCroissance: string | null;
   design: string | null;
   anciennete: string | null;
   pointsFaibles: string | null;
   cible: string; // client | partenaire
+  segment: string; // classique | pro
   metier: string | null;
   flagConcurrent: boolean;
   flagAQualifier: boolean;
@@ -144,6 +157,92 @@ function ScorePill({ score, big = false }: { score: number; big?: boolean }) {
     >
       {score}
     </span>
+  );
+}
+
+// Badge du filtre en or : la qualification structurée (chaud / tiède / à écarter).
+// C'est le signal de tri principal ; le score IA 0-100 reste un détail secondaire.
+const TIER_STYLE: Record<string, { cls: string; label: string }> = {
+  chaud: { cls: "bg-positive-bg text-positive-ink", label: "Chaud" },
+  tiede: { cls: "bg-warning-bg text-warning-ink", label: "Tiède" },
+  drop: { cls: "bg-muted text-muted-foreground", label: "À écarter" },
+};
+
+function TierBadge({ tier, total }: { tier: string; total: number | null }) {
+  const s = TIER_STYLE[tier] ?? TIER_STYLE.drop;
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${s.cls}`}
+    >
+      {s.label}
+      {total != null ? <span className="font-mono tabular-nums opacity-70">{total}/8</span> : null}
+    </span>
+  );
+}
+
+// Détail du filtre en or dans la fiche : les 4 signaux + le gate besoin. Rend la
+// qualification lisible et traçable (chaque sous-score s'explique).
+function SousScore({ label, note, value }: { label: string; note: string; value: number | null }) {
+  const cls =
+    value === 2 ? "bg-positive-bg text-positive-ink" : value === 1 ? "bg-warning-bg text-warning-ink" : "bg-muted text-muted-foreground";
+  return (
+    <div className="flex items-center justify-between gap-2 rounded-md border px-2.5 py-1.5">
+      <div className="min-w-0">
+        <div className="text-xs font-medium">{label}</div>
+        <div className="truncate text-[11px] text-muted-foreground">{note}</div>
+      </div>
+      <span className={`shrink-0 rounded px-1.5 py-0.5 font-mono text-xs font-semibold tabular-nums ${cls}`}>
+        {value != null ? `${value}/2` : "—"}
+      </span>
+    </div>
+  );
+}
+
+function FiltreBreakdown({ p }: { p: ProspectRow }) {
+  if (p.filtreTier == null) return null;
+  const pro = p.segment === "pro";
+  return (
+    <div className="space-y-2 rounded-lg border p-3">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-medium text-muted-foreground">
+          Filtre en or{pro ? " · Pro" : ""}
+        </span>
+        <TierBadge tier={p.filtreTier} total={p.filtreTotal} />
+      </div>
+      {p.filtreBesoin === false ? (
+        <p className="rounded-md bg-muted px-2.5 py-1.5 text-[11px] text-muted-foreground">
+          {pro
+            ? "Besoin ROI absent (ni trafic payé, ni produit complexe) : écarté quel que soit le reste."
+            : "Besoin de niche faible : le prospect est écarté quel que soit le reste du score."}
+        </p>
+      ) : null}
+      <div className="grid gap-1.5 sm:grid-cols-2">
+        <SousScore
+          label="Potentiel éco."
+          note={pro ? "Levée / effectif financé" : "Peut payer un récurrent"}
+          value={p.filtrePotentiel}
+        />
+        <SousScore
+          label={pro ? "Opportunité" : "Problème"}
+          note={pro ? "Sous-performance / conversion" : "Défauts factuels du site"}
+          value={p.filtreProbleme}
+        />
+        <SousScore label="Croissance" note="Signaux d'investissement" value={p.filtreCroissance} />
+        <SousScore label="Accès" note="Joindre le décideur" value={p.filtreAcces} />
+      </div>
+      {p.signauxCroissance ? (
+        <div className="flex flex-wrap gap-1">
+          {p.signauxCroissance.split(" • ").map((s, i) => (
+            <Badge key={i} variant="secondary" className="font-normal">
+              {s}
+            </Badge>
+          ))}
+        </div>
+      ) : null}
+      {p.filtreTrace ? (
+        <p className="text-[11px] leading-relaxed text-muted-foreground">{p.filtreTrace}</p>
+      ) : null}
+    </div>
   );
 }
 
@@ -208,6 +307,18 @@ const FILTRES: { value: string; label: string; test: (p: ProspectRow) => boolean
       !["ecarte", "converti"].includes(p.statut) &&
       !p.flagConcurrent &&
       (p.statut !== "contacte" || p.relanceDue),
+  },
+  {
+    value: "chauds",
+    label: "Chauds",
+    // Tête de file du filtre en or : la priorité d'attaque (≥ 7/8, hors clos).
+    test: (p) => p.filtreTier === "chaud" && !["ecarte", "converti"].includes(p.statut),
+  },
+  {
+    value: "pro",
+    label: "Pro",
+    // Segment haut de gamme (startup / scale-up / SaaS) : angle ROI, funnel séparé.
+    test: (p) => p.segment === "pro" && p.cible !== "partenaire",
   },
   { value: "partenaires", label: "Partenaires", test: (p) => p.cible === "partenaire" },
   { value: "a_qualifier", label: "À qualifier", test: (p) => p.flagAQualifier },
@@ -314,7 +425,7 @@ export function ProspectTable({ prospects }: { prospects: ProspectRow[] }) {
                 <TableHead>Entreprise</TableHead>
                 <TableHead>Statut</TableHead>
                 <TableHead>Campagne</TableHead>
-                <TableHead className="text-center">Score</TableHead>
+                <TableHead className="text-center">Qualif.</TableHead>
                 <TableHead className="w-8" />
               </TableRow>
             </TableHeader>
@@ -349,7 +460,9 @@ export function ProspectTable({ prospects }: { prospects: ProspectRow[] }) {
                     )}
                   </TableCell>
                   <TableCell className="text-center">
-                    {p.score != null ? (
+                    {p.filtreTier ? (
+                      <TierBadge tier={p.filtreTier} total={p.filtreTotal} />
+                    ) : p.score != null ? (
                       <ScorePill score={p.score} />
                     ) : p.statutAudit === "erreur" ? (
                       <AlertTriangle className="mx-auto size-4 text-warning-ink" />
@@ -395,6 +508,10 @@ function StatutTags({ p }: { p: ProspectRow }) {
       {p.cible === "partenaire" ? (
         <Badge variant="outline" className="font-normal text-muted-foreground">
           {p.metier ? (metierByCle(p.metier)?.label ?? p.metier) : "Partenaire"}
+        </Badge>
+      ) : p.segment === "pro" ? (
+        <Badge className="gap-1 border-accent-brand/30 bg-accent-brand-bg font-normal text-accent-brand">
+          <Rocket className="size-3" /> Pro
         </Badge>
       ) : null}
       {p.flagConcurrent ? (
@@ -523,6 +640,24 @@ function ProspectSheet({
                 </p>
               ) : null}
 
+              {/* Segment client : bascule classique ↔ Pro (angle ROI, funnel séparé) */}
+              {p.cible !== "partenaire" ? (
+                <button
+                  type="button"
+                  onClick={() =>
+                    run(
+                      () => basculerSegmentProspect(p.id),
+                      p.segment === "pro" ? "Repassé en classique." : "Passé en Pro. À ré-auditer.",
+                    )
+                  }
+                  disabled={pending}
+                  className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground disabled:opacity-50"
+                >
+                  <Rocket className="size-3" />
+                  {p.segment === "pro" ? "Repasser en classique" : "Passer en Pro (ROI)"}
+                </button>
+              ) : null}
+
               {/* Non audité / erreur */}
               {!audite ? (
                 <div className="space-y-2">
@@ -575,6 +710,8 @@ function ProspectSheet({
                       ) : null}
                     </div>
                   ) : null}
+
+                  {p.cible !== "partenaire" ? <FiltreBreakdown p={p} /> : null}
 
                   {p.atouts ? (
                     <div className="flex flex-wrap gap-1.5">

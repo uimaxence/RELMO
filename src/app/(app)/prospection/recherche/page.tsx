@@ -31,7 +31,7 @@ export default async function RechercheProspectsPage() {
       where: { statutAudit: "a_auditer", statut: { not: "ecarte" } },
     }),
     prisma.prospect.count({ where: { statut: "contacte" } }),
-    prisma.prospect.count({ where: { score: { gte: 65 }, statut: { notIn: ["ecarte", "converti"] } } }),
+    prisma.prospect.count({ where: { filtreTier: "chaud", statut: { notIn: ["ecarte", "converti"] } } }),
     prisma.prospect.count({ where: { statut: "a_contacter" } }),
   ]);
 
@@ -59,10 +59,21 @@ export default async function RechercheProspectsPage() {
       email: p.email,
       statutAudit: p.statutAudit,
       score: p.score,
+      filtreTier: p.filtreTier,
+      filtreTotal: p.filtreTotal,
+      filtreBesoin: p.filtreBesoin,
+      filtrePotentiel: p.filtrePotentiel,
+      filtreProbleme: p.filtreProbleme,
+      filtreCroissance: p.filtreCroissance,
+      filtreAcces: p.filtreAcces,
+      filtreTrace: p.filtreTrace,
+      effectif: p.effectif,
+      signauxCroissance: p.signauxCroissance,
       design: p.design,
       anciennete: p.anciennete,
       pointsFaibles: p.pointsFaibles,
       cible: p.cible,
+      segment: p.segment,
       metier: p.metier,
       flagConcurrent: p.flagConcurrent,
       flagAQualifier: p.flagAQualifier,
@@ -86,7 +97,7 @@ export default async function RechercheProspectsPage() {
 
   const kpis = [
     { label: "Prospects", value: prospects.length, icon: Users, hint: "En base" },
-    { label: "Score ≥ 65", value: nbScore, icon: Target, hint: "À attaquer en priorité" },
+    { label: "Prospects chauds", value: nbScore, icon: Target, hint: "Filtre en or ≥ 7/8 : à attaquer en priorité" },
     { label: "Contactés", value: nbContactes, icon: Send, hint: "Dans le pipeline" },
     {
       label: "Relances dues",

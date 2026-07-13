@@ -353,6 +353,10 @@ model Prospect {
 
   // Mode V2 « partenaires » (apporteurs d'affaires). cible=client → flux V1 inchangé.
   cible          String  @default("client") // client | partenaire
+  // Segment de la cible client : « classique » (artisan/TPE, audit défauts) ou
+  // « pro » (startup/scale-up/SaaS, audit opportunité de performance, angle ROI).
+  // Cf. RELMO-Pro-prospects-haut-de-gamme.md. Sans effet si cible=partenaire.
+  segment        String  @default("classique") // classique | pro
   metier         String? // comptable | graphiste | agence_web | adjacent (si cible=partenaire)
   flagConcurrent Boolean @default(false) // offre web détectée → jamais de pitch automatique
   flagAQualifier Boolean @default(false) // agence web → qualification manuelle obligatoire
@@ -372,6 +376,19 @@ model Prospect {
   linkedin         String?
   accrocheEmail    String?
   accrocheLinkedin String?
+
+  // Filtre en or (scoring structuré, cf. RELMO-scoring-filtre-en-or.md) — cible=client.
+  // Le besoin est un GATE de niche ; les 4 autres signaux somment sur 8.
+  filtreBesoin      Boolean? // gate : la niche a-t-elle un besoin web fort
+  filtrePotentiel   Int? // 0-2 potentiel économique (effectif / avis)
+  filtreProbleme    Int? // 0-2 défauts factuels du site
+  filtreCroissance  Int? // 0-2 signaux d'investissement / croissance
+  filtreAcces       Int? // 0-2 joignabilité du décideur
+  filtreTotal       Int? // 0-8 somme des 4 signaux (besoin en gate)
+  filtreTier        String? // chaud | tiede | drop
+  filtreTrace       String? // raisons de chaque sous-score (traçabilité crédibilité)
+  effectif          Int? // effectif estimé (proxy potentiel économique)
+  signauxCroissance String? // signaux de croissance détectés, joints par " • "
 
   // Suivi commercial / pipeline de prospection
   statut         String    @default("nouveau") // nouveau | a_contacter | contacte | ecarte | converti
@@ -394,6 +411,8 @@ model Prospect {
   @@index([statut])
   @@index([score])
   @@index([cible])
+  @@index([segment])
+  @@index([filtreTier])
 }
 
 // To-do quotidienne générée (F12).

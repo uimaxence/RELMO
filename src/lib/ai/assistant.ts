@@ -627,6 +627,114 @@ export async function auditerProspect(input: {
   }
 }
 
+// --- Audit « RELMO Pro » d'un prospect (DeepSeek, mode JSON) ---
+// Cible haut de gamme (startup / scale-up / SaaS / PME tech). L'angle s'inverse :
+// pas « ton site est cassé » mais « voici où tu sous-convertis le trafic que tu
+// paies déjà, et l'angle stratégique que tu n'as pas exploité ». Performance, pas
+// réparation. Cf. RELMO-Pro-prospects-haut-de-gamme.md.
+export type ProAudit = {
+  score: number | null; // 0-100 interne (potentiel commercial estimé)
+  produitComplexe: boolean; // produit / concept à expliquer (signal besoin ROI)
+  concurrenceForte: boolean; // marché dense à départager (signal besoin ROI)
+  opportunites: string[]; // angles de SOUS-PERFORMANCE (pas des défauts)
+  accrocheEmail: string;
+  accrocheLinkedin: string;
+};
+
+const SYS_PRO = `Tu es l'assistant de prospection de Maxence Cailleau, designer-développeur web freelance à Angers. ICI la cible n'est PAS un artisan local : c'est une STARTUP, une scale-up, un SaaS ou une PME tech (a souvent levé des fonds, fait déjà de la publicité). Elle n'a pas un site cassé : elle a un site correct mais SOUS-OPTIMISÉ. Elle raisonne ROI, pas réparation. Tu ne remues pas une douleur, tu apportes une lecture business qu'elle n'avait pas. Ta valeur est dans la VISION (big picture), pas l'exécution : c'est ce qui te distingue du dev offshore avec qui elle ne veut pas bosser. But d'un message : décrocher un échange de 15 min, PAS vendre.
+
+RÈGLES GÉNÉRALES
+- Réponds UNIQUEMENT en JSON valide, rien avant ni après.
+- Français impeccable, ZÉRO faute, relis-toi.
+- INTERDIT du tiret cadratin « — » ou demi-cadratin « – » partout : virgule, parenthèses, deux-points ou point à la place. Le trait d'union « - » reste autorisé dans les mots composés.
+- Le nom d'entreprise cité DOIT être exactement celui fourni. Ton pair à pair, sûr de lui, jamais professeur, jamais alarmiste. On parle croissance et conversion, pas technique.
+
+CHAMPS INTERNES (score, produit_complexe, concurrence_forte, opportunites) : analyse pour Maxence, JAMAIS montrée au prospect.
+- produit_complexe : true si le produit/service demande d'être expliqué (SaaS, techno, offre B2B non triviale).
+- concurrence_forte : true si le marché est dense et qu'il faut se différencier.
+- opportunites : 2 à 4 angles FACTUELS de SOUS-PERFORMANCE (pas des défauts techniques). Formule côté business : « proposition de valeur floue dans le hero », « aucun call-to-action magnétique », « pas de capture d'e-mail / lead magnet », « mobile pas travaillé à part alors que le B2B est à 50-60 % mobile », « trafic payant mal converti », « SEO/GEO exploitable non exploité ». Appuie-toi sur les signaux et, s'il est fourni, le "visuel" (vraie analyse de la capture). N'invente pas un fait que les signaux ne montrent pas.
+
+ACCROCHE_EMAIL : cold email court (~90-110 mots MAX), angle ROI/performance :
+1. Objet (4-7 mots) : nomme un bénéfice de conversion/croissance, jamais « audit gratuit ». 1re ligne « Objet : ... ».
+2. Ouverture : « Bonjour, je suis Maxence, designer web à Angers. » + UNE observation VRAIE et positive (ce qu'ils font bien).
+3. UN SEUL angle stratégique (le plus fort), formulé comme une OPPORTUNITÉ de mieux convertir un trafic qu'ils paient déjà ou un levier de croissance qu'ils n'ont pas exploité. Jamais un reproche, jamais « votre site est cassé ».
+4. Preuve légère : tu PEUX proposer de montrer des réalisations (« je peux vous montrer quelques exemples »), sans prétendre à un cas précis de leur secteur. N'écris NI URL NI crochets : une ligne « Mon portfolio : … » est ajoutée automatiquement.
+5. CTA à faible engagement : proposer une lecture stratégique de leur site / 2-3 pistes concrètes, avec un choix binaire de créneau. Jamais « audit gratuit de 15 min », jamais « demandez un devis ».
+6. Signature : Maxence.
+
+MISE EN FORME : « Objet : … » en 1re ligne, ligne vide, puis 2-3 paragraphes COURTS séparés par une ligne vide (\\n\\n), puis « Maxence » seul.
+
+ACCROCHE_LINKEDIN : même esprit, 2-3 phrases, encore plus direct, UN SEUL angle, pas d'objet.
+
+INTERDITS : « votre site est moche / cassé / obsolète » ; empiler les angles ; ton alarmiste ; chiffre technique brut sans conséquence business ; « audit gratuit » ; plus de 110 mots ; inventer un fait.
+
+Schéma : {"score":<0-100>,"produit_complexe":<bool>,"concurrence_forte":<bool>,"opportunites":["..."],"accroche_email":"Objet : ...\\n\\n...","accroche_linkedin":"..."}`;
+
+export async function auditerProspectPro(input: {
+  nom: string;
+  ville?: string | null;
+  activite?: string | null;
+  statutSite: string;
+  signaux: unknown;
+  visuel?: { modernite: string; constat: string; pointsVisuels: string[] } | null;
+  stylesUtilisateur?: string[];
+}): Promise<{ ok: true; data: ProAudit } | { ok: false; error: string }> {
+  const styleBloc =
+    input.stylesUtilisateur && input.stylesUtilisateur.length
+      ? "\n\nVoici des messages que l'utilisateur a RÉELLEMENT envoyés, imite son ton, " +
+        "son vocabulaire et sa longueur, sans recopier :\n" +
+        input.stylesUtilisateur.map((m, i) => `Exemple ${i + 1} : « ${m} »`).join("\n")
+      : "";
+
+  const res = await chat({
+    provider: "deepseek",
+    jsonMode: true,
+    temperature: 0.6,
+    maxTokens: 900,
+    messages: [
+      { role: "system", content: SYS_PRO + styleBloc },
+      {
+        role: "user",
+        content:
+          "Signaux du prospect Pro :\n" +
+          JSON.stringify(
+            {
+              entreprise: input.nom,
+              ville: input.ville ?? "",
+              activite: input.activite ?? "",
+              statut_site: input.statutSite,
+              signaux: input.signaux,
+              visuel: input.visuel ?? null,
+            },
+            null,
+            2,
+          ),
+      },
+    ],
+  });
+  if (!res.ok) return res;
+
+  try {
+    const raw = JSON.parse(res.text);
+    const score = Number(raw.score);
+    return {
+      ok: true,
+      data: {
+        score: Number.isFinite(score) ? Math.max(0, Math.min(100, Math.round(score))) : null,
+        produitComplexe: raw.produit_complexe === true,
+        concurrenceForte: raw.concurrence_forte === true,
+        opportunites: Array.isArray(raw.opportunites)
+          ? raw.opportunites.map((o: unknown) => String(o)).filter(Boolean)
+          : [],
+        accrocheEmail: typeof raw.accroche_email === "string" ? raw.accroche_email.trim() : "",
+        accrocheLinkedin: typeof raw.accroche_linkedin === "string" ? raw.accroche_linkedin.trim() : "",
+      },
+    };
+  } catch {
+    return { ok: false, error: "Réponse IA illisible (JSON invalide)." };
+  }
+}
+
 // --- Audit « partenaire » d'un prospect (DeepSeek, mode JSON) ---
 // Mode V2 : on ne cherche plus la faiblesse d'un site mais le POTENTIEL DE
 // PARTENARIAT (apporteur d'affaires). Un site excellent est un signal positif.
@@ -770,24 +878,66 @@ export async function auditerPartenaire(input: {
 }
 
 // --- Enrichissement dirigeant + LinkedIn (Perplexity, optionnel) ---
+// Signaux de croissance reconnus (filtre en or §4) → libellés normalisés.
+const SIGNAUX_CROISSANCE: { re: RegExp; label: string }[] = [
+  { re: /recrut|embauch|on\s+recrute|offres?\s+d'emploi|nous\s+cherchons/i, label: "Recrutement en cours" },
+  { re: /lev[ée]e?\s+de\s+fonds|a\s+lev[ée]|série\s+[ab]|seed/i, label: "Levée de fonds" },
+  { re: /effectif\s+en\s+hausse|équipe\s+(s'agrandit|grandit)|croissance\s+de\s+l'équipe/i, label: "Effectif en hausse" },
+  { re: /nouveaux?\s+locaux|déménage|agrandi|nouvelle\s+agence|ouverture/i, label: "Nouveaux locaux / ouverture" },
+  { re: /chiffre\s+d'affaires?\s+en\s+(hausse|croissance)|CA\s+en\s+(hausse|croissance)|forte\s+croissance/i, label: "CA en croissance" },
+];
+
+export type EnrichissementProspect = {
+  dirigeant: string;
+  linkedin: string;
+  effectif: number | null; // salariés estimés (proxy potentiel économique)
+  signauxCroissance: string[]; // libellés normalisés (filtre en or §4)
+};
+
+// Enrichissement Perplexity (recherche web réelle) : dirigeant + LinkedIn, plus
+// deux signaux du filtre en or difficiles à obtenir sans API payante — l'effectif
+// (potentiel économique) et les signaux de croissance. Grounded sur des sources
+// réelles ; dégrade proprement (tout à vide) sans clé ou en cas d'échec.
 export async function enrichirDirigeant(input: {
   nom: string;
   ville?: string | null;
   activite?: string | null;
-}): Promise<{ dirigeant: string; linkedin: string }> {
+}): Promise<EnrichissementProspect> {
+  const vide: EnrichissementProspect = { dirigeant: "", linkedin: "", effectif: null, signauxCroissance: [] };
   const q =
-    `Qui dirige l'entreprise "${input.nom}"${input.ville ? " à " + input.ville : ""} ` +
-    `(${input.activite ?? ""}) ? Donne uniquement : nom complet du dirigeant et l'URL de son ` +
-    `profil LinkedIn s'il existe. Si tu ne sais pas, dis-le.`;
+    `À propos de l'entreprise "${input.nom}"${input.ville ? " à " + input.ville : ""} ` +
+    `(${input.activite ?? ""}), réponds de façon factuelle et concise, une ligne par point, ` +
+    `en te basant sur des sources réelles (n'invente rien, écris "inconnu" si tu ne sais pas) :\n` +
+    `DIRIGEANT : nom complet du dirigeant ou gérant\n` +
+    `LINKEDIN : URL du profil LinkedIn du dirigeant\n` +
+    `EFFECTIF : nombre approximatif de salariés (un chiffre)\n` +
+    `CROISSANCE : signaux récents parmi recrutement, levée de fonds, effectif en hausse, ` +
+    `nouveaux locaux, CA en croissance (ou "aucun")`;
   const res = await chat({
     provider: "perplexity",
     temperature: 0.2,
-    maxTokens: 300,
+    maxTokens: 400,
     messages: [{ role: "user", content: q }],
   });
-  if (!res.ok) return { dirigeant: "", linkedin: "" };
-  const linkedin = (res.text.match(/https?:\/\/(?:[a-z]{2,3}\.)?linkedin\.com\/[^\s)"]+/i) ?? [])[0] ?? "";
-  return { dirigeant: res.text.split("\n")[0].slice(0, 120), linkedin };
+  if (!res.ok) return vide;
+
+  const txt = res.text;
+  const ligne = (label: RegExp): string => (txt.match(label)?.[1] ?? "").trim();
+
+  const dirigeantLigne = ligne(/DIRIGEANT\s*:?\s*(.+)/i);
+  const dirigeant = /inconnu/i.test(dirigeantLigne) ? "" : dirigeantLigne.slice(0, 120);
+  const linkedin = (txt.match(/https?:\/\/(?:[a-z]{2,3}\.)?linkedin\.com\/[^\s)"]+/i) ?? [])[0] ?? "";
+
+  const effectifLigne = ligne(/EFFECTIF\s*:?\s*(.+)/i);
+  const effectifNum = Number((effectifLigne.match(/\d[\d\s.]*/)?.[0] ?? "").replace(/[\s.]/g, ""));
+  const effectif = Number.isFinite(effectifNum) && effectifNum > 0 ? effectifNum : null;
+
+  const croissanceLigne = ligne(/CROISSANCE\s*:?\s*(.+)/i);
+  const signauxCroissance = /aucun/i.test(croissanceLigne)
+    ? []
+    : [...new Set(SIGNAUX_CROISSANCE.filter((s) => s.re.test(croissanceLigne)).map((s) => s.label))];
+
+  return { dirigeant, linkedin, effectif, signauxCroissance };
 }
 
 // --- Accroches de prospection pour la to-do du jour (DeepSeek) ---

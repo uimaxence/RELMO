@@ -7,9 +7,27 @@ import { prisma } from "@/lib/db";
 import { collecter, domaineDe, placesConfigured, type LeadBrut } from "@/lib/prospection/places";
 import { analyzeSite, type Contacts } from "@/lib/prospection/audit";
 import { analyseVisuelle } from "@/lib/prospection/visuel";
-import { auditerProspect, auditerPartenaire, enrichirDirigeant } from "@/lib/ai/assistant";
+import {
+  auditerProspect,
+  auditerProspectPro,
+  auditerPartenaire,
+  enrichirDirigeant,
+} from "@/lib/ai/assistant";
 import { REGIONS, REGION_DEFAUT } from "@/lib/prospection/regions";
-import { secteurByCle } from "@/lib/prospection/secteurs";
+import { secteurByCle, besoinFortDuSecteur } from "@/lib/prospection/secteurs";
+import {
+  scorePotentiel,
+  scoreProbleme,
+  scoreCroissance,
+  scoreAcces,
+  computeFiltre,
+} from "@/lib/prospection/scoring";
+import {
+  scorePotentielPro,
+  besoinFortPro,
+  scoreOpportunitePro,
+  computeFiltrePro,
+} from "@/lib/prospection/scoring-pro";
 import { metierByCle, modeleRemuValide } from "@/lib/prospection/metiers-partenaires";
 import { prochaineRelance } from "@/lib/constants";
 import {
@@ -375,9 +393,144 @@ async function auditerProspectPartenaire(p: {
   return { ok: true, score: concurrent ? 0 : ia.data.score };
 }
 
+// Audit « RELMO Pro » (segment=pro) : angle opportunité de performance (pas défauts),
+// scoring recalibré (besoin ROI en gate, croissance centrale). Cf.
+// RELMO-Pro-prospects-haut-de-gamme.md.
+async function auditerProspectProInterne(p: {
+  id: string;
+  nom: string;
+  ville: string | null;
+  activite: string | null;
+  site: string | null;
+  secteur: string | null;
+  email: string | null;
+  telephone: string | null;
+  nbAvis: number | null;
+  dirigeant: string | null;
+  linkedin: string | null;
+  effectif: number | null;
+}): Promise<{ ok: boolean; score?: number | null; error?: string }> {
+  const { statut, signals, contacts } = await analyzeSite(p.site);
+  const visuel = await analyseVisuelle(p.site);
+  const villeDansTitre =
+    p.ville && signals.title ? signals.title.toLowerCase().includes(p.ville.toLowerCase()) : null;
+
+  const ia = await auditerProspectPro({
+    nom: p.nom,
+    ville: p.ville,
+    activite: p.activite,
+    statutSite: statut,
+    signaux: { ...signals, villeDansTitre },
+    visuel,
+    stylesUtilisateur: await stylesUtilisateur(),
+  });
+  if (!ia.ok) {
+    await prisma.prospect.update({
+      where: { id: p.id },
+      data: { statutAudit: "erreur", note: ia.error?.slice(0, 300) ?? null },
+    });
+    return { ok: false, error: ia.error };
+  }
+
+  let dirigeant = "";
+  let linkedin = "";
+  let effectif: number | null = null;
+  let signauxCroissance: string[] = [];
+  if (ENRICH && (ia.data.score ?? 0) >= SCORE_ENRICH_MIN) {
+    const e = await enrichirDirigeant({ nom: p.nom, ville: p.ville, activite: p.activite });
+    dirigeant = e.dirigeant;
+    linkedin = e.linkedin;
+    effectif = e.effectif;
+    signauxCroissance = e.signauxCroissance;
+  }
+
+  const telephoneFinal = p.telephone || contacts.phones[0] || null;
+  const filtre = computeFiltrePro({
+    besoin: besoinFortPro({
+      pixelPublicitaire: signals.pixelPublicitaire,
+      produitComplexe: ia.data.produitComplexe,
+      concurrenceForte: ia.data.concurrenceForte,
+    }),
+    potentiel: scorePotentielPro({
+      effectif: effectif ?? p.effectif,
+      leveeDeFonds: signauxCroissance.includes("Levée de fonds"),
+      caCroissance: signauxCroissance.includes("CA en croissance"),
+      nbAvis: p.nbAvis,
+    }),
+    opportunite: scoreOpportunitePro(signals, ia.data.opportunites),
+    croissance: scoreCroissance(signauxCroissance),
+    acces: scoreAcces({
+      bestEmail: contacts.bestEmail || p.email,
+      linkedin: linkedin || p.linkedin,
+      dirigeant: dirigeant || p.dirigeant,
+      telephone: telephoneFinal,
+    }),
+  });
+
+  await prisma.prospect.update({
+    where: { id: p.id },
+    data: {
+      statutAudit: statut,
+      score: ia.data.score,
+      design: visuel ? `[${visuel.modernite}] ${visuel.constat}` : null,
+      pointsFaibles: ia.data.opportunites.join(" • ") || null,
+      accrocheEmail: ia.data.accrocheEmail || null,
+      accrocheLinkedin: ia.data.accrocheLinkedin || null,
+      email: contacts.bestEmail || p.email,
+      emailsTous: contacts.emails.join(" ") || null,
+      telephone: telephoneFinal,
+      siret: contacts.siret,
+      dirigeant: dirigeant || p.dirigeant,
+      linkedin: linkedin || p.linkedin,
+      effectif: effectif ?? p.effectif,
+      signauxCroissance: signauxCroissance.join(" • ") || null,
+      filtreBesoin: filtre.besoin,
+      filtrePotentiel: filtre.potentiel.score,
+      filtreProbleme: filtre.opportunite.score, // colonne réutilisée : « opportunité » en mode Pro
+      filtreCroissance: filtre.croissance.score,
+      filtreAcces: filtre.acces.score,
+      filtreTotal: filtre.total,
+      filtreTier: filtre.tier,
+      filtreTrace: filtre.trace,
+    },
+  });
+
+  revalidatePath(PAGE);
+  return { ok: true, score: ia.data.score };
+}
+
+// Bascule un prospect entre segment « classique » et « pro » et le remet à auditer
+// (le scoring et l'angle d'accroche diffèrent) → prochaine ouverture propose l'audit.
+export async function basculerSegmentProspect(
+  id: string,
+): Promise<{ ok: boolean; segment?: string; error?: string }> {
+  const p = await prisma.prospect.findUnique({ where: { id }, select: { segment: true, cible: true } });
+  if (!p) return { ok: false, error: "Prospect introuvable." };
+  if (p.cible === "partenaire") return { ok: false, error: "Segment inapplicable à un partenaire." };
+  const segment = p.segment === "pro" ? "classique" : "pro";
+  await prisma.prospect.update({
+    where: { id },
+    data: {
+      segment,
+      // On repart d'un audit neuf : les sous-scores changent de sémantique.
+      statutAudit: "a_auditer",
+      filtreTier: null,
+      filtreTotal: null,
+      filtreBesoin: null,
+      filtrePotentiel: null,
+      filtreProbleme: null,
+      filtreCroissance: null,
+      filtreAcces: null,
+      filtreTrace: null,
+    },
+  });
+  revalidatePath(PAGE);
+  return { ok: true, segment };
+}
+
 // Audit d'un prospect : analyse site + DeepSeek (score + accroches) + enrichissement
 // optionnel (Perplexity). Met à jour la ligne en base. Route vers le chemin
-// « partenaire » (V2) si la fiche a été collectée avec cette cible.
+// « partenaire » (V2) ou « pro » (haut de gamme) selon la fiche.
 export async function auditerUnProspect(
   id: string,
 ): Promise<{ ok: boolean; score?: number | null; error?: string }> {
@@ -385,6 +538,7 @@ export async function auditerUnProspect(
   if (!p) return { ok: false, error: "Prospect introuvable." };
 
   if (p.cible === "partenaire") return auditerProspectPartenaire(p);
+  if (p.segment === "pro") return auditerProspectProInterne(p);
 
   const { statut, signals, contacts } = await analyzeSite(p.site);
   // Analyse VISUELLE (capture + Gemini) : null si pas de clé/échec → l'accroche
@@ -415,11 +569,33 @@ export async function auditerUnProspect(
 
   let dirigeant = "";
   let linkedin = "";
+  let effectif: number | null = null;
+  let signauxCroissance: string[] = [];
   if (ENRICH && (ia.data.score ?? 0) >= SCORE_ENRICH_MIN) {
     const e = await enrichirDirigeant({ nom: p.nom, ville: p.ville, activite: p.activite });
     dirigeant = e.dirigeant;
     linkedin = e.linkedin;
+    effectif = e.effectif;
+    signauxCroissance = e.signauxCroissance;
   }
+
+  // Filtre en or : score structuré (probabilité de signer un récurrent), calculé
+  // à partir des signaux déterministes + de l'enrichissement quand il a tourné.
+  // Besoin en GATE (niche) ; les autres sous-scores dégradent proprement (potentiel
+  // retombe sur le nombre d'avis, croissance à 0 sans enrichissement).
+  const telephoneFinal = p.telephone || contacts.phones[0] || null;
+  const filtre = computeFiltre({
+    besoin: besoinFortDuSecteur(p.secteur),
+    potentiel: scorePotentiel({ effectif: effectif ?? p.effectif, nbAvis: p.nbAvis }),
+    probleme: scoreProbleme(signals, { villeDansTitre, statut }),
+    croissance: scoreCroissance(signauxCroissance),
+    acces: scoreAcces({
+      bestEmail: contacts.bestEmail || p.email,
+      linkedin: linkedin || p.linkedin,
+      dirigeant: dirigeant || p.dirigeant,
+      telephone: telephoneFinal,
+    }),
+  });
 
   await prisma.prospect.update({
     where: { id },
@@ -434,10 +610,20 @@ export async function auditerUnProspect(
       accrocheLinkedin: ia.data.accrocheLinkedin || null,
       email: contacts.bestEmail || p.email,
       emailsTous: contacts.emails.join(" ") || null,
-      telephone: p.telephone || contacts.phones[0] || null,
+      telephone: telephoneFinal,
       siret: contacts.siret,
       dirigeant: dirigeant || p.dirigeant,
       linkedin: linkedin || p.linkedin,
+      effectif: effectif ?? p.effectif,
+      signauxCroissance: signauxCroissance.join(" • ") || null,
+      filtreBesoin: filtre.besoin,
+      filtrePotentiel: filtre.potentiel.score,
+      filtreProbleme: filtre.probleme.score,
+      filtreCroissance: filtre.croissance.score,
+      filtreAcces: filtre.acces.score,
+      filtreTotal: filtre.total,
+      filtreTier: filtre.tier,
+      filtreTrace: filtre.trace,
     },
   });
 

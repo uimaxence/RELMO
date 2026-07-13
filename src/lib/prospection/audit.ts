@@ -20,6 +20,11 @@ export type Signaux = {
   derniereAnneeVisible: number | null;
   anneeCopyright: number | null; // année du © en pied de page = dernière mise à jour probable
   poidsHtmlKo: number;
+  // Signaux « RELMO Pro » (audit d'opportunité de performance, cf. RELMO-Pro-…md).
+  pixelPublicitaire: boolean; // Meta/Google Ads/LinkedIn/TikTok → la boîte paie du trafic
+  analytics: boolean; // GA / GTM présent (maturité mesure)
+  ctaFort: boolean; // CTA d'action détecté (démo, essai, réservation…)
+  captureEmail: boolean; // formulaire e-mail / lead magnet détecté
 };
 
 export type Contacts = {
@@ -147,6 +152,21 @@ function buildSignaux(html: string, finalUrl: string): Signaux {
   );
   const anneeCopyright = copyMatch ? +copyMatch[1] : null;
 
+  // Signaux Pro. Les pixels/tags vivent dans les <script> → on lit le html brut.
+  const pixelPublicitaire =
+    /fbq\(|connect\.facebook\.net\/[^"']*fbevents|facebook\.com\/tr\?|googleadservices\.com|google_conversion|_linkedin_partner_id|snap\.licdn\.com|analytics\.tiktok\.com|ttq\.(load|track)/i.test(html);
+  const analytics =
+    /googletagmanager\.com|gtag\(|google-analytics\.com|ga\(['"]create|_gaq\.push|plausible\.io|matomo|posthog/i.test(html);
+  // CTA fort et capture d'e-mail : sur le TEXTE visible (hors scripts/styles).
+  const texte = html
+    .replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]+>/g, " ");
+  const ctaFort =
+    /(demander une démo|réserv(er|ez)|essai gratuit|essayer gratuitement|commencer|démarrer|obtenir un devis|prendre rendez-?vous|book a demo|get started|start free|sign up|s'inscrire|créer un compte)/i.test(texte);
+  const captureEmail =
+    /<input[^>]+type=["']email["']/i.test(html) ||
+    /(newsletter|inscrivez-vous|abonnez-vous|livre blanc|ebook|guide gratuit|téléchargez le|recevez)/i.test(texte);
+
   return {
     url: finalUrl,
     https: finalUrl.startsWith("https"),
@@ -164,6 +184,10 @@ function buildSignaux(html: string, finalUrl: string): Signaux {
     derniereAnneeVisible: years.length ? Math.max(...years) : null,
     anneeCopyright,
     poidsHtmlKo: Math.round(html.length / 1024),
+    pixelPublicitaire,
+    analytics,
+    ctaFort,
+    captureEmail,
   };
 }
 
