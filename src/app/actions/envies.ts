@@ -110,6 +110,6 @@ export async function updateReglageCampagne(
     where: { id: "singleton" },
     data: parsed.data,
   });
-  revalidatePath("/prospection/campagne");
+  revalidatePath("/prospection");
   return { ok: true, message: "Réglages de campagne enregistrés." };
 }

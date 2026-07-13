@@ -54,10 +54,10 @@ async function stylesUtilisateur(): Promise<string[]> {
 }
 
 // Frontière "use server" du moteur de prospection. Toutes les écritures passent
-// par Prisma + revalidatePath("/prospection/recherche"). Dédup : domaine (site)
+// par Prisma + revalidatePath("/prospection"). Dédup : domaine (site)
 // et placeId (Google) sont @unique.
 
-const PAGE = "/prospection/recherche";
+const PAGE = "/prospection";
 const LIMITE_PAR_RECHERCHE = 15; // on ne garde que les 15 meilleurs par lancement
 // L'audit inclut désormais une analyse visuelle (capture + vision) ~15-20 s/prospect.
 // Pour tenir sous la limite serverless (60 s), on audite par PETITS LOTS enchaînés
@@ -100,6 +100,7 @@ async function upsertLead(
     campagne?: string;
     cible?: string;
     metier?: string;
+    segment?: string;
   },
 ): Promise<string | null> {
   const nom = lead.nom.trim();
@@ -117,6 +118,8 @@ async function upsertLead(
     secteur: lead.secteur || null,
     campagne: lead.campagne?.trim() || null,
     cible: lead.cible === "partenaire" ? "partenaire" : "client",
+    // Le segment « pro » ne s'applique qu'à une cible client (angle ROI).
+    segment: lead.cible !== "partenaire" && lead.segment === "pro" ? "pro" : "classique",
     metier: lead.metier || null,
     nbAvis: lead.nbAvis ?? null,
     noteGoogle: lead.noteGoogle ?? null,
@@ -157,6 +160,7 @@ export async function collecterProspects(input: {
   campagne?: string;
   cible?: string; // client | partenaire
   metier?: string; // requis si cible = partenaire
+  segment?: string; // classique | pro (cible client uniquement)
 }): Promise<{
   ok: boolean;
   ajoutes?: number;
@@ -210,6 +214,7 @@ export async function collecterProspects(input: {
       campagne: input.campagne,
       cible,
       metier: met?.cle,
+      segment: input.segment,
     });
     if (id) createdIds.push(id);
   }
@@ -220,7 +225,7 @@ export async function collecterProspects(input: {
 // (B) Import CSV — colonnes nom,site,ville,activite,telephone (mêmes que collect).
 export async function importerProspectsCsv(
   csv: string,
-  opts?: { secteur?: string; campagne?: string; cible?: string; metier?: string },
+  opts?: { secteur?: string; campagne?: string; cible?: string; metier?: string; segment?: string },
 ): Promise<{
   ok: boolean;
   ajoutes?: number;
@@ -255,6 +260,7 @@ export async function importerProspectsCsv(
       campagne: opts?.campagne,
       cible: opts?.cible,
       metier: opts?.metier,
+      segment: opts?.segment,
     });
     if (id) createdIds.push(id);
   }
@@ -720,7 +726,7 @@ export async function changerStatutProspect(
 ): Promise<void> {
   await prisma.prospect.update({ where: { id }, data: { statut } });
   revalidatePath(PAGE);
-  revalidatePath("/prospection/campagne");
+  revalidatePath("/prospection");
 }
 
 // « Mail envoyé » : entre dans le pipeline. Enregistre le message RÉELLEMENT
@@ -745,7 +751,7 @@ export async function marquerContacte(
     },
   });
   revalidatePath(PAGE);
-  revalidatePath("/prospection/campagne");
+  revalidatePath("/prospection");
   return { ok: true };
 }
 

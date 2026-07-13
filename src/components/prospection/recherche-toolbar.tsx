@@ -46,6 +46,7 @@ export function RechercheToolbar({
 }) {
   const [region, setRegion] = useState(REGION_DEFAUT);
   const [cible, setCible] = useState("client"); // client final (V1) | partenaire (V2)
+  const [segment, setSegment] = useState("classique"); // classique | pro (angle ROI)
   const [secteur, setSecteur] = useState(SECTEUR_DEFAUT);
   const [metier, setMetier] = useState(METIER_DEFAUT);
   const [ville, setVille] = useState(REGIONS[REGION_DEFAUT][0]);
@@ -98,6 +99,7 @@ export function RechercheToolbar({
         campagne,
         cible,
         metier: cible === "partenaire" ? metier : undefined,
+        segment: cible === "client" ? segment : undefined,
       });
       if (!res.ok) {
         toast.error(res.error ?? "Échec de la collecte.");
@@ -149,6 +151,21 @@ export function RechercheToolbar({
               </SelectContent>
             </Select>
           </div>
+
+          {cible === "client" ? (
+            <div className="space-y-1.5">
+              <Label>Gamme</Label>
+              <Select value={segment} onValueChange={setSegment}>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="classique">Classique (artisan / TPE)</SelectItem>
+                  <SelectItem value="pro">Pro (startup / scale-up)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          ) : null}
 
           <div className="space-y-1.5">
             <Label>Région</Label>
@@ -242,6 +259,7 @@ export function RechercheToolbar({
             campagne={campagne}
             cible={cible}
             metier={cible === "partenaire" ? metier : undefined}
+            segment={cible === "client" ? segment : undefined}
             onImported={boucleAudit}
             disabled={looping || pending}
           />
@@ -295,6 +313,7 @@ function ImportCsvDialog({
   campagne,
   cible,
   metier,
+  segment,
   onImported,
   disabled,
 }: {
@@ -302,6 +321,7 @@ function ImportCsvDialog({
   campagne: string;
   cible: string;
   metier?: string;
+  segment?: string;
   onImported: () => void | Promise<void>;
   disabled?: boolean;
 }) {
@@ -311,7 +331,7 @@ function ImportCsvDialog({
 
   function importer() {
     start(async () => {
-      const res = await importerProspectsCsv(csv, { secteur, campagne, cible, metier });
+      const res = await importerProspectsCsv(csv, { secteur, campagne, cible, metier, segment });
       if (res.ok) {
         toast.success(
           `${res.ajoutes} prospect(s) importé(s) (${res.total} lignes). Audit en cours…`,
