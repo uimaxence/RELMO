@@ -14,7 +14,9 @@ export default function AppLayout({
   return (
     <SidebarProvider>
       <AppSidebar />
-      <SidebarInset>
+      {/* min-w-0 : sans ça, un enfant large (table de prospection) élargit toute la
+          colonne au lieu de scroller dans son propre conteneur → scroll horizontal. */}
+      <SidebarInset className="min-w-0">
         <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4">
           <CustomSidebarTrigger />
           <Separator
