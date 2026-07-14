@@ -959,14 +959,19 @@ export async function sourcerStartupsPro(input: {
     ? ` Concentre-toi si possible sur la région « ${input.region} » ou la France.`
     : " Priorité aux entreprises françaises.";
   const q =
-    `Tu es un assistant de sourcing de prospects. Trouve jusqu'à ${max} PETITES entreprises RÉELLES ` +
-    `correspondant à : « ${input.angle} ».${geo}\n\n` +
-    `CRITÈRES STRICTS :\n` +
-    `- Petites structures récentes : startups early-stage, seed, indie, petits SaaS bootstrappés. ` +
-    `EXCLUS les grandes entreprises connues, les scale-ups établies et les licornes (elles ont déjà une agence).\n` +
-    `- Uniquement des entreprises vérifiables sur des sources fiables (annuaires d'incubateurs / ` +
-    `accélérateurs comme Station F ou la French Tech, Product Hunt, BetaList, Indie Hackers, communiqués ` +
-    `de levée). N'INVENTE aucun nom ni aucune URL.\n` +
+    `Tu es un assistant de sourcing de prospects pour un designer web freelance. Trouve jusqu'à ${max} ` +
+    `TRÈS PETITES entreprises RÉELLES correspondant à : « ${input.angle} ».${geo}\n\n` +
+    `PROFIL RECHERCHÉ (impératif) :\n` +
+    `- Micro-structures : équipe de MOINS DE ~20 personnes, en amorçage (pre-seed / seed) ou bootstrappées, ` +
+    `souvent peu connues. Le genre de boîte qui n'a PAS encore d'agence ni d'équipe design interne, où l'on ` +
+    `peut joindre le fondateur.\n` +
+    `- EXCLUS FORMELLEMENT toute entreprise connue, toute licorne, toute scale-up ayant levé une série A ou plus, ` +
+    `tout ce qui dépasse ~50 salariés. Par exemple, des boîtes comme Qonto, Alan, Swile, Spendesk, Agicap, Sellsy, ` +
+    `Payfit sont TROP GROSSES : ne les cite pas, ni rien à leur échelle.\n` +
+    `- Privilégie des noms obscurs, indie, micro-SaaS, lancements récents sur Product Hunt / BetaList / Indie Hackers, ` +
+    `ou membres de petits incubateurs. Si un nom est célèbre, c'est qu'il est trop gros : écarte-le.\n\n` +
+    `RÈGLES :\n` +
+    `- Uniquement des entreprises vérifiables sur des sources réelles. N'INVENTE aucun nom ni aucune URL.\n` +
     `- Chaque entreprise doit avoir un site web officiel.\n\n` +
     `FORMAT : une entreprise par ligne, exactement « Nom | https://site-officiel ». Rien d'autre : pas de ` +
     `numérotation, pas de commentaire, pas de texte avant ou après. Si tu n'es pas sûr de l'URL, n'inclus pas la ligne.`;

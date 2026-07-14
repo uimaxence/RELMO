@@ -478,11 +478,14 @@ async function auditerProspectProInterne(p: {
     return { ok: false, error: ia.error };
   }
 
+  // Pro : on enrichit TOUJOURS (indépendamment du flag ENRICH). Le potentiel (levée
+  // / effectif) et la croissance SONT le scoring Pro ; sans enrichissement ils
+  // valent 0 et tout retombe en « drop ». Perplexity absent → dégrade à vide.
   let dirigeant = "";
   let linkedin = "";
   let effectif: number | null = null;
   let signauxCroissance: string[] = [];
-  if (ENRICH && (ia.data.score ?? 0) >= SCORE_ENRICH_MIN) {
+  {
     const e = await enrichirDirigeant({ nom: p.nom, ville: p.ville, activite: p.activite });
     dirigeant = e.dirigeant;
     linkedin = e.linkedin;
