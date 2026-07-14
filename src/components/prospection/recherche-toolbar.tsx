@@ -31,6 +31,7 @@ import { METIER_OPTIONS, METIER_DEFAUT } from "@/lib/prospection/metiers-partena
 import {
   collecterProspects,
   importerProspectsCsv,
+  sourcerProspectsPro,
   auditerNonAudites,
   supprimerNonAudites,
 } from "@/app/actions/prospection";
@@ -51,6 +52,7 @@ export function RechercheToolbar({
   const [metier, setMetier] = useState(METIER_DEFAUT);
   const [ville, setVille] = useState(REGIONS[REGION_DEFAUT][0]);
   const [pages, setPages] = useState("1");
+  const [angle, setAngle] = useState(""); // sourcing Pro (Perplexity)
   const [campagne, setCampagne] = useState("Phase 1");
   const [pending, start] = useTransition();
   const [auditPending, startAudit] = useTransition();
@@ -58,6 +60,9 @@ export function RechercheToolbar({
   const [progres, setProgres] = useState<{ done: number; restants: number } | null>(null);
 
   const villes = useMemo(() => REGIONS[region] ?? [], [region]);
+  // Gamme Pro : la découverte ne passe plus par Google Places (commerce local) mais
+  // par un sourcing Perplexity (startups / petits SaaS). Le secteur ne s'applique pas.
+  const pro = cible === "client" && segment === "pro";
 
   // Audit par petits lots enchaînés (chaque appel tient sous la limite serverless).
   // On boucle jusqu'à épuisement des non-audités, avec progression en direct.
@@ -109,6 +114,19 @@ export function RechercheToolbar({
         `${res.ajoutes} prospect(s) ajouté(s) sur ${res.total} trouvés. Audit en cours…`,
       );
       // Enchaîne l'audit (site + visuel) par lots, sans bloquer la collecte.
+      await boucleAudit();
+    });
+  }
+
+  // Sourcing Pro : Perplexity ramène des candidats → fiches segment=pro → audit.
+  function sourcerPro() {
+    start(async () => {
+      const res = await sourcerProspectsPro({ angle, region, campagne });
+      if (!res.ok) {
+        toast.error(res.error ?? "Sourcing impossible.");
+        return;
+      }
+      toast.success(`${res.ajoutes} startup(s) ajoutée(s) sur ${res.total} trouvées. Audit en cours…`);
       await boucleAudit();
     });
   }
@@ -183,7 +201,7 @@ export function RechercheToolbar({
             </Select>
           </div>
 
-          {cible === "client" ? (
+          {cible === "client" && !pro ? (
             <div className="space-y-1.5">
               <Label>Secteur</Label>
               <Select value={secteur} onValueChange={setSecteur}>
@@ -199,7 +217,7 @@ export function RechercheToolbar({
                 </SelectContent>
               </Select>
             </div>
-          ) : (
+          ) : cible === "partenaire" ? (
             <div className="space-y-1.5">
               <Label>Métier</Label>
               <Select value={metier} onValueChange={setMetier}>
@@ -215,44 +233,72 @@ export function RechercheToolbar({
                 </SelectContent>
               </Select>
             </div>
-          )}
+          ) : null}
 
-          <div className="space-y-1.5">
-            <Label>Ville</Label>
-            <Select value={ville} onValueChange={setVille}>
-              <SelectTrigger className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={TOUTES}>Toutes (plafonné)</SelectItem>
-                {villes.map((v) => (
-                  <SelectItem key={v} value={v}>
-                    {v}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          {!pro ? (
+            <div className="space-y-1.5">
+              <Label>Ville</Label>
+              <Select value={ville} onValueChange={setVille}>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={TOUTES}>Toutes (plafonné)</SelectItem>
+                  {villes.map((v) => (
+                    <SelectItem key={v} value={v}>
+                      {v}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ) : null}
 
-          <div className="space-y-1.5">
-            <Label>Profondeur</Label>
-            <Select value={pages} onValueChange={setPages}>
-              <SelectTrigger className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="1">20 résultats / requête</SelectItem>
-                <SelectItem value="3">60 résultats / requête (lent)</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          {!pro ? (
+            <div className="space-y-1.5">
+              <Label>Profondeur</Label>
+              <Select value={pages} onValueChange={setPages}>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1">20 résultats / requête</SelectItem>
+                  <SelectItem value="3">60 résultats / requête (lent)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          ) : null}
         </div>
 
+        {/* Gamme Pro : sourcing par angle (Perplexity) au lieu du scrape local. */}
+        {pro ? (
+          <div className="space-y-1.5">
+            <Label htmlFor="angle">Angle de recherche (startups / SaaS)</Label>
+            <Input
+              id="angle"
+              value={angle}
+              onChange={(e) => setAngle(e.target.value)}
+              placeholder="Ex. petits SaaS français financés en seed 2025, ou : startups de Station F en martech"
+            />
+            <p className="text-xs text-muted-foreground">
+              La région ci-dessus sert d&apos;indice géographique. Perplexity lit de vraies sources
+              (incubateurs, Product Hunt, French Tech), à relire avant d&apos;auditer.
+            </p>
+          </div>
+        ) : null}
+
         <div className="flex flex-wrap items-center gap-2">
-          <Button onClick={lancer} disabled={pending || looping || !placesActif}>
-            {pending || looping ? <Loader2 className="animate-spin" /> : <Search />}
-            {pending || looping ? "Recherche + audit…" : "Lancer la recherche (15 max)"}
-          </Button>
+          {pro ? (
+            <Button onClick={sourcerPro} disabled={pending || looping || !angle.trim()}>
+              {pending || looping ? <Loader2 className="animate-spin" /> : <Sparkles className="text-brand" />}
+              {pending || looping ? "Sourcing + audit…" : "Trouver des startups (Pro)"}
+            </Button>
+          ) : (
+            <Button onClick={lancer} disabled={pending || looping || !placesActif}>
+              {pending || looping ? <Loader2 className="animate-spin" /> : <Search />}
+              {pending || looping ? "Recherche + audit…" : "Lancer la recherche (15 max)"}
+            </Button>
+          )}
 
           <ImportCsvDialog
             secteur={cible === "client" ? secteur : undefined}
@@ -289,20 +335,29 @@ export function RechercheToolbar({
           ) : null}
         </div>
 
-        <p className="text-xs text-muted-foreground">
-          Une recherche garde les <strong>15</strong> meilleurs prospects, puis les audite
-          (site <strong>+ analyse visuelle</strong>) par petits lots. Garde l&apos;onglet
-          ouvert : ça peut prendre quelques minutes, la progression s&apos;affiche sur le
-          bouton.
-          {!placesActif ? (
-            <>
-              {" "}
-              Scraping Google Places désactivé (clé{" "}
-              <code className="rounded bg-muted px-1">GOOGLE_PLACES_API_KEY</code> absente) —
-              l&apos;import CSV reste disponible.
-            </>
-          ) : null}
-        </p>
+        {pro ? (
+          <p className="text-xs text-muted-foreground">
+            Gamme <strong>Pro</strong> : pas de scrape local (les startups n&apos;y sont pas). Perplexity
+            ramène jusqu&apos;à <strong>15</strong> candidats depuis de vraies sources, créés en fiches
+            « Pro » puis audités (l&apos;audit élimine les URLs mortes). C&apos;est un canal de qualité,
+            à relire, pas de la masse. L&apos;import CSV (export Crunchbase / Sales Navigator) reste dispo.
+          </p>
+        ) : (
+          <p className="text-xs text-muted-foreground">
+            Une recherche garde les <strong>15</strong> meilleurs prospects, puis les audite
+            (site <strong>+ analyse visuelle</strong>) par petits lots. Garde l&apos;onglet
+            ouvert : ça peut prendre quelques minutes, la progression s&apos;affiche sur le
+            bouton.
+            {!placesActif ? (
+              <>
+                {" "}
+                Scraping Google Places désactivé (clé{" "}
+                <code className="rounded bg-muted px-1">GOOGLE_PLACES_API_KEY</code> absente) —
+                l&apos;import CSV reste disponible.
+              </>
+            ) : null}
+          </p>
+        )}
       </CardContent>
     </Card>
   );

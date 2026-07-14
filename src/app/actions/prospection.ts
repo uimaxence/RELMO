@@ -12,8 +12,9 @@ import {
   auditerProspectPro,
   auditerPartenaire,
   enrichirDirigeant,
+  sourcerStartupsPro,
 } from "@/lib/ai/assistant";
-import { REGIONS, REGION_DEFAUT } from "@/lib/prospection/regions";
+import { REGIONS, REGION_DEFAUT, REGION_OPTIONS } from "@/lib/prospection/regions";
 import { secteurByCle, besoinFortDuSecteur } from "@/lib/prospection/secteurs";
 import {
   scorePotentiel,
@@ -266,6 +267,45 @@ export async function importerProspectsCsv(
   }
   revalidatePath(PAGE);
   return { ok: true, ajoutes: createdIds.length, total: data.length };
+}
+
+// (C) Sourcing « Pro » via Perplexity — remplace Google Places pour la gamme Pro
+// (startups / petits SaaS, introuvables par un scrape local). Crée des fiches
+// segment=pro à auditer. Cf. discussion RELMO Pro : canal de qualité, pas de masse.
+export async function sourcerProspectsPro(input: {
+  angle: string;
+  region?: string;
+  campagne?: string;
+}): Promise<{ ok: boolean; ajoutes?: number; total?: number; error?: string }> {
+  const angle = input.angle?.trim();
+  if (!angle) return { ok: false, error: "Donne un angle (ex. « petits SaaS français financés en seed 2025 »)." };
+
+  const regionKey = REGIONS[input.region ?? ""] ? input.region : undefined;
+  const regionLabel = REGION_OPTIONS.find((o) => o.value === regionKey)?.label;
+
+  const res = await sourcerStartupsPro({ angle, region: regionLabel, max: LIMITE_PAR_RECHERCHE });
+  if (!res.ok) return { ok: false, error: res.error };
+
+  const createdIds: string[] = [];
+  for (const c of res.data) {
+    const id = await upsertLead({
+      nom: c.nom,
+      site: c.site,
+      ville: "",
+      activite: "startup / SaaS",
+      telephone: "",
+      placeId: "",
+      nbAvis: null,
+      noteGoogle: null,
+      region: regionKey,
+      campagne: input.campagne,
+      cible: "client",
+      segment: "pro",
+    });
+    if (id) createdIds.push(id);
+  }
+  revalidatePath(PAGE);
+  return { ok: true, ajoutes: createdIds.length, total: res.data.length };
 }
 
 // Contacts extraits du site → champs de la fiche (jamais écraser une saisie user).

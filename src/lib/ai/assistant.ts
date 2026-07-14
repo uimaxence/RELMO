@@ -940,6 +940,82 @@ export async function enrichirDirigeant(input: {
   return { dirigeant, linkedin, effectif, signauxCroissance };
 }
 
+// --- Sourcing de startups « Pro » (Perplexity, recherche web réelle) ---
+// Google Places ne trouve que du commerce local ; pour la gamme Pro (petits SaaS,
+// startups early-stage), on demande à Perplexity de LIRE de vraies sources
+// (annuaires d'incubateurs, Product Hunt, French Tech) plutôt que d'inventer une
+// liste. Chaque candidat passe ensuite par l'audit (le fetch du site élimine les
+// URLs mortes/fausses) puis le scoring Pro. On ne fait donc jamais confiance à la
+// liste brute : c'est de l'assistance au sourcing, pas une vérité.
+export type StartupCandidate = { nom: string; site: string };
+
+export async function sourcerStartupsPro(input: {
+  angle: string;
+  region?: string | null;
+  max?: number;
+}): Promise<{ ok: true; data: StartupCandidate[] } | { ok: false; error: string }> {
+  const max = Math.min(Math.max(input.max ?? 15, 1), 25);
+  const geo = input.region
+    ? ` Concentre-toi si possible sur la région « ${input.region} » ou la France.`
+    : " Priorité aux entreprises françaises.";
+  const q =
+    `Tu es un assistant de sourcing de prospects. Trouve jusqu'à ${max} PETITES entreprises RÉELLES ` +
+    `correspondant à : « ${input.angle} ».${geo}\n\n` +
+    `CRITÈRES STRICTS :\n` +
+    `- Petites structures récentes : startups early-stage, seed, indie, petits SaaS bootstrappés. ` +
+    `EXCLUS les grandes entreprises connues, les scale-ups établies et les licornes (elles ont déjà une agence).\n` +
+    `- Uniquement des entreprises vérifiables sur des sources fiables (annuaires d'incubateurs / ` +
+    `accélérateurs comme Station F ou la French Tech, Product Hunt, BetaList, Indie Hackers, communiqués ` +
+    `de levée). N'INVENTE aucun nom ni aucune URL.\n` +
+    `- Chaque entreprise doit avoir un site web officiel.\n\n` +
+    `FORMAT : une entreprise par ligne, exactement « Nom | https://site-officiel ». Rien d'autre : pas de ` +
+    `numérotation, pas de commentaire, pas de texte avant ou après. Si tu n'es pas sûr de l'URL, n'inclus pas la ligne.`;
+
+  const res = await chat({
+    provider: "perplexity",
+    // « sonar » (défaut) refuse ce sourcing (recherche trop superficielle) ; il faut
+    // « sonar-pro », dont la recherche web ancrée ramène de vraies entreprises.
+    model: "sonar-pro",
+    temperature: 0.3,
+    maxTokens: 900,
+    messages: [{ role: "user", content: q }],
+  });
+  if (!res.ok) return res;
+
+  const seen = new Set<string>();
+  const data: StartupCandidate[] = [];
+  for (const raw of res.text.split("\n")) {
+    const line = raw.trim().replace(/^[-*•\d.)\s]+/, ""); // enlève puces / numéros
+    const url = (line.match(/https?:\/\/[^\s|)>\]]+/i) ?? [])[0];
+    if (!url) continue;
+    let host: string;
+    try {
+      host = new URL(url).host.replace(/^www\./, "");
+    } catch {
+      continue;
+    }
+    if (seen.has(host)) continue;
+    // Nom = ce qui précède l'URL, sans séparateur ni guillemets ; sinon dérivé du domaine.
+    let nom = line
+      .slice(0, line.indexOf(url))
+      .replace(/[|:–—-]\s*$/, "")
+      .replace(/["'«»()]/g, "")
+      .trim();
+    if (!nom) nom = host.split(".")[0].replace(/^\w/, (c) => c.toUpperCase());
+    if (nom.length < 2) continue;
+    seen.add(host);
+    data.push({ nom: nom.slice(0, 120), site: url });
+    if (data.length >= max) break;
+  }
+  if (!data.length) {
+    return {
+      ok: false,
+      error: "Aucune startup exploitable trouvée pour cet angle. Reformule (plus précis, ou nomme un incubateur).",
+    };
+  }
+  return { ok: true, data };
+}
+
 // --- Accroches de prospection pour la to-do du jour (DeepSeek) ---
 // Calibrées sur l'écart à l'objectif MRR (cf. PROJET.md §11.2b).
 export async function genererAccrochesProspection(): Promise<AiResult> {
