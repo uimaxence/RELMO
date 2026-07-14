@@ -26,9 +26,12 @@ export async function VueProspecter() {
     contactesTotal,
     reponduTotal,
   ] = await Promise.all([
+    // Fenêtre par date de création DÉCROISSANTE : les fiches fraîchement sourcées
+    // (dont le Pro) sont toujours chargées, au lieu d'être enterrées au-delà du
+    // plafond par un tri statut/score. Le tableau re-trie ensuite côté client.
     prisma.prospect.findMany({
-      orderBy: [{ statut: "asc" }, { score: "desc" }, { createdAt: "desc" }],
-      take: 300,
+      orderBy: { createdAt: "desc" },
+      take: 500,
     }),
     prisma.prospect.count({ where: { statutAudit: "a_auditer", statut: { not: "ecarte" } } }),
     prisma.prospect.count({ where: { statut: "contacte" } }),

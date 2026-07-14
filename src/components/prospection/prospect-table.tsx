@@ -178,8 +178,12 @@ export function ProspectTable({ prospects }: { prospects: ProspectRow[] }) {
                   <TableCell>
                     <div className="flex items-center gap-3">
                       <Avatar nom={p.nom} />
-                      <div className="min-w-0">
-                        <div className="truncate font-medium">{p.nom}</div>
+                      {/* max-w borné : sans ça, un nom Google à rallonge élargit la
+                          colonne et fait scroller la table. truncate + title au survol. */}
+                      <div className="min-w-0 max-w-[200px] sm:max-w-[340px] lg:max-w-[440px]">
+                        <div className="truncate font-medium" title={p.nom}>
+                          {p.nom}
+                        </div>
                         <div className="truncate text-xs text-muted-foreground">
                           {[p.activite, p.ville].filter(Boolean).join(" · ") || "—"}
                         </div>
