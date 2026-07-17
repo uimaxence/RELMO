@@ -28,24 +28,22 @@ import { Button } from "@/components/ui/button";
 import { AiGenerateDialog } from "@/components/ai/ai-generate-dialog";
 import { actionAnalyseCompta } from "@/app/actions/ai";
 import { ImportComptaDialog } from "@/components/compta/import-dialog";
+import { PeriodeFilter } from "@/components/compta/periode-filter";
+import { DepensesCategories } from "@/components/compta/depenses-categories";
 import {
   EcrituresTable,
   type EcritureRow,
 } from "@/components/compta/ecritures-table";
 import { euros } from "@/lib/format";
-import { agreger, depensesParCategorie } from "@/lib/compta";
+import { periodeLabel } from "@/lib/periode";
+import {
+  agreger,
+  depensesParCategorieDetaille,
+  trimestreDe,
+  trimestreLabel,
+} from "@/lib/compta";
 
 export const dynamic = "force-dynamic";
-
-// "2026-07" → "juil. 2026"
-function moisLabel(periode: string): string {
-  const d = new Date(`${periode}-01T00:00:00Z`);
-  return d.toLocaleDateString("fr-FR", {
-    month: "short",
-    year: "numeric",
-    timeZone: "UTC",
-  });
-}
 
 function signeClasse(n: number): string {
   if (n > 0.005) return "text-positive-ink";
@@ -53,18 +51,67 @@ function signeClasse(n: number): string {
   return "";
 }
 
-export default async function ComptabilitePage() {
+export default async function ComptabilitePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ p?: string }>;
+}) {
+  const sp = await searchParams;
   const ecritures = await prisma.ecritureCompta.findMany({
     orderBy: [{ date: "desc" }, { createdAt: "desc" }],
   });
 
-  const a = agreger(ecritures);
-  const parCat = depensesParCategorie(ecritures);
-  const totalDepensesCat = parCat.reduce((s, r) => s + r.montant, 0);
+  // Périodes disponibles pour le filtre (récentes en premier).
+  const moisDispo = [...new Set(ecritures.map((e) => e.periode))].sort((a, b) =>
+    b.localeCompare(a),
+  );
+  const trimDispo = [
+    ...new Set(ecritures.map((e) => trimestreDe(e.periode))),
+  ].sort((a, b) => b.localeCompare(a));
 
-  // Agrégats par mois (récents en premier).
+  // Résolution du scope demandé (?p=tout | AAAA-MM | AAAA-TN).
+  const p = sp.p ?? "tout";
+  const estMois = /^\d{4}-\d{2}$/.test(p) && moisDispo.includes(p);
+  const estTrim = /^\d{4}-T[1-4]$/.test(p) && trimDispo.includes(p);
+  const scope: "tout" | "mois" | "trimestre" = estMois
+    ? "mois"
+    : estTrim
+      ? "trimestre"
+      : "tout";
+  const valeurFiltre = scope === "tout" ? "tout" : p;
+
+  const scoped =
+    scope === "mois"
+      ? ecritures.filter((e) => e.periode === p)
+      : scope === "trimestre"
+        ? ecritures.filter((e) => trimestreDe(e.periode) === p)
+        : ecritures;
+
+  const a = agreger(scoped);
+
+  // Trésorerie = solde du compte à la fin de la période sélectionnée (cumulée).
+  const treasuryMax =
+    scope === "mois"
+      ? p
+      : scope === "trimestre"
+        ? `${p.slice(0, 4)}-${String(Number(p.slice(6)) * 3).padStart(2, "0")}`
+        : null;
+  const tresorerie = treasuryMax
+    ? agreger(ecritures.filter((e) => e.periode <= treasuryMax)).tresorerie
+    : a.tresorerie;
+
+  const scopeLabel =
+    scope === "mois"
+      ? periodeLabel(p)
+      : scope === "trimestre"
+        ? trimestreLabel(p)
+        : "depuis le début";
+
+  const parCat = depensesParCategorieDetaille(scoped);
+
+  // Agrégats par mois (dans le scope), récents en premier.
   const parMois = new Map<string, typeof ecritures>();
-  for (const e of ecritures) {
+  for (const e of scoped) {
     const arr = parMois.get(e.periode) ?? [];
     arr.push(e);
     parMois.set(e.periode, arr);
@@ -73,7 +120,7 @@ export default async function ComptabilitePage() {
     .sort((x, y) => y[0].localeCompare(x[0]))
     .map(([periode, lignes]) => ({ periode, ...agreger(lignes) }));
 
-  const rows: EcritureRow[] = ecritures.map((e) => ({
+  const rows: EcritureRow[] = scoped.map((e) => ({
     id: e.id,
     date: e.date.toISOString(),
     libelle: e.libelle,
@@ -83,26 +130,30 @@ export default async function ComptabilitePage() {
     montant: e.montant,
   }));
 
+  const surLaPeriode = scope === "tout" ? "depuis le début" : `sur ${scopeLabel}`;
   const kpis = [
     {
       label: "Trésorerie",
-      value: euros(a.tresorerie),
+      value: euros(tresorerie),
       icon: Wallet,
-      hint: "Ce qu'il reste sur le compte pro",
-      classe: signeClasse(a.tresorerie),
+      hint:
+        scope === "tout"
+          ? "Ce qu'il reste sur le compte pro"
+          : `Solde du compte à fin ${scopeLabel}`,
+      classe: signeClasse(tresorerie),
     },
     {
       label: "Recettes",
       value: euros(a.recettes),
       icon: TrendingUp,
-      hint: "Encaissé depuis le début",
+      hint: `Encaissé ${surLaPeriode}`,
       classe: "",
     },
     {
       label: "Dépenses pro",
       value: euros(a.depenses),
       icon: TrendingDown,
-      hint: "Charges de l'activité",
+      hint: `Charges ${surLaPeriode}`,
       classe: "",
     },
     {
@@ -128,17 +179,24 @@ export default async function ComptabilitePage() {
         description="Importe ton relevé Indy : recettes, dépenses, trésorerie et pistes d'optimisation, au même endroit."
       >
         {ecritures.length > 0 ? (
-          <AiGenerateDialog
-            action={actionAnalyseCompta}
-            title="Analyser mes dépenses"
-            description="L'IA passe en revue tes dépenses pour repérer doublons, abonnements dormants et postes optimisables. Brouillon, rien n'est modifié."
-            providerLabel="DeepSeek"
-            trigger={
-              <Button variant="outline">
-                <Sparkles className="text-brand" /> Analyser mes dépenses
-              </Button>
-            }
-          />
+          <>
+            <PeriodeFilter
+              value={valeurFiltre}
+              mois={moisDispo}
+              trimestres={trimDispo}
+            />
+            <AiGenerateDialog
+              action={actionAnalyseCompta}
+              title="Analyser mes dépenses"
+              description="L'IA passe en revue tes dépenses pour repérer doublons, abonnements dormants et postes optimisables. Brouillon, rien n'est modifié."
+              providerLabel="DeepSeek"
+              trigger={
+                <Button variant="outline">
+                  <Sparkles className="text-brand" /> Analyser mes dépenses
+                </Button>
+              }
+            />
+          </>
         ) : null}
         <ImportComptaDialog />
       </PageHeader>
@@ -183,8 +241,9 @@ export default async function ComptabilitePage() {
           {a.aCategoriser > 0 ? (
             <p className="rounded-lg bg-warning-bg px-4 py-2.5 text-sm text-warning-ink">
               {a.aCategoriser} écriture{a.aCategoriser > 1 ? "s" : ""} encore « à
-              catégoriser ». Range-les dans le tableau du bas (ou laisse l&apos;IA
-              proposer) pour fiabiliser le résultat.
+              catégoriser »{scope === "tout" ? "" : ` sur ${scopeLabel}`}. Range-les
+              dans le tableau du bas (ou laisse l&apos;IA proposer) pour fiabiliser le
+              résultat.
             </p>
           ) : null}
 
@@ -210,7 +269,7 @@ export default async function ComptabilitePage() {
                     {moisRows.map((m) => (
                       <TableRow key={m.periode}>
                         <TableCell className="pl-6 font-medium capitalize">
-                          {moisLabel(m.periode)}
+                          {periodeLabel(m.periode)}
                         </TableCell>
                         <TableCell className="text-right font-mono tabular-nums text-positive-ink">
                           {euros(m.recettes)}
@@ -233,46 +292,21 @@ export default async function ComptabilitePage() {
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">Dépenses par catégorie</CardTitle>
-                <CardDescription>Où part l&apos;argent, depuis le début.</CardDescription>
+                <CardDescription>
+                  Clique une ligne pour voir le détail par fournisseur ({scopeLabel}).
+                </CardDescription>
               </CardHeader>
               <CardContent className="px-0">
-                {parCat.length === 0 ? (
-                  <p className="px-6 py-4 text-sm text-muted-foreground">
-                    Aucune dépense enregistrée.
-                  </p>
-                ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="pl-6">Catégorie</TableHead>
-                        <TableHead className="text-right">Part</TableHead>
-                        <TableHead className="pr-6 text-right">Montant</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {parCat.map((r) => (
-                        <TableRow key={r.categorie}>
-                          <TableCell className="pl-6 font-medium">{r.label}</TableCell>
-                          <TableCell className="text-right font-mono tabular-nums text-muted-foreground">
-                            {totalDepensesCat > 0
-                              ? `${Math.round((r.montant / totalDepensesCat) * 100)}%`
-                              : "—"}
-                          </TableCell>
-                          <TableCell className="pr-6 text-right font-mono font-medium tabular-nums">
-                            {euros(r.montant)}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                )}
+                <DepensesCategories categories={parCat} />
               </CardContent>
             </Card>
           </div>
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Toutes les écritures</CardTitle>
+              <CardTitle className="text-base">
+                {scope === "tout" ? "Toutes les écritures" : `Écritures · ${scopeLabel}`}
+              </CardTitle>
               <CardDescription>
                 Change une catégorie à la volée : le résultat et les totaux se
                 recalculent. Les entrées sont en vert, les sorties en rouge.

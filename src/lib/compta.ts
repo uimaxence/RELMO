@@ -150,6 +150,75 @@ export function agreger(ecritures: EcritureCalc[]): Agregats {
   };
 }
 
+// --- Trimestres (pour le filtre de période) ---
+// "2026-06" → "2026-T2"
+export function trimestreDe(periode: string): string {
+  const [y, m] = periode.split("-").map(Number);
+  const t = Math.floor((m - 1) / 3) + 1;
+  return `${y}-T${t}`;
+}
+
+// "2026-T2" → "T2 2026"
+export function trimestreLabel(trimestre: string): string {
+  const [y, t] = trimestre.split("-T");
+  return `T${t} ${y}`;
+}
+
+// --- Détail des dépenses par catégorie, ventilé par fournisseur ---
+export type FournisseurDetail = {
+  nom: string;
+  montant: number;
+  occurrences: number;
+};
+
+export type CategorieDetail = {
+  categorie: string;
+  label: string;
+  montant: number;
+  fournisseurs: FournisseurDetail[];
+};
+
+// Normalise un libellé pour regrouper les opérations d'un même fournisseur
+// (retire numéros de facture, dates, ponctuation).
+export function normaliserFournisseur(libelle: string): string {
+  return libelle
+    .toLowerCase()
+    .replace(/\d+/g, "")
+    .replace(/[^a-zàâçéèêëîïôûùüœ ]/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+export function depensesParCategorieDetaille(
+  ecritures: (EcritureCalc & { categorie: string; libelle: string })[],
+): CategorieDetail[] {
+  const cats = new Map<string, Map<string, FournisseurDetail>>();
+  for (const e of ecritures) {
+    if (e.type !== "depense" && e.type !== "a_categoriser") continue;
+    const s = e.sens === "entree" ? -e.montant : e.montant; // net (remboursement = négatif)
+    const fmap = cats.get(e.categorie) ?? new Map<string, FournisseurDetail>();
+    const cle = normaliserFournisseur(e.libelle) || e.libelle.toLowerCase();
+    const cur = fmap.get(cle) ?? { nom: e.libelle, montant: 0, occurrences: 0 };
+    cur.montant += s;
+    cur.occurrences += 1;
+    // Garde le libellé le plus court comme nom affiché (souvent le plus propre).
+    if (e.libelle.length < cur.nom.length) cur.nom = e.libelle;
+    fmap.set(cle, cur);
+    cats.set(e.categorie, fmap);
+  }
+
+  const result: CategorieDetail[] = [];
+  for (const [categorie, fmap] of cats) {
+    const fournisseurs = [...fmap.values()]
+      .filter((f) => Math.abs(f.montant) > 0.005)
+      .sort((a, b) => b.montant - a.montant);
+    const montant = fournisseurs.reduce((sum, f) => sum + f.montant, 0);
+    if (fournisseurs.length === 0) continue;
+    result.push({ categorie, label: labelCategorie(categorie), montant, fournisseurs });
+  }
+  return result.sort((a, b) => b.montant - a.montant);
+}
+
 // Regroupe des dépenses par catégorie (montant net, pour la répartition).
 export function depensesParCategorie(
   ecritures: (EcritureCalc & { categorie: string })[],
