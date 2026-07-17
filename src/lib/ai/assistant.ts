@@ -12,6 +12,7 @@ import {
 } from "@/lib/constants";
 import { currentPeriode } from "@/lib/periode";
 import { currentWeek } from "@/lib/semaine";
+import { agreger, depensesParCategorie, CATEGORIES_COMPTA } from "@/lib/compta";
 import { COMMISSION_CREATION_PCT } from "@/lib/prospection/metiers-partenaires";
 
 // Couche métier de l'assistant (cf. docs/IA.md §5). Chaque fonction charge le
@@ -1043,4 +1044,131 @@ export async function genererAccrochesProspection(): Promise<AiResult> {
   ];
 
   return chat({ provider: "deepseek", messages, temperature: 0.6 });
+}
+
+// --- Comptabilité : analyse des dépenses (DeepSeek) ---
+// Passe en revue les dépenses pro pour repérer doublons, abonnements dormants,
+// postes optimisables. Renvoie un texte prêt à lire (brouillon, non enregistré).
+export async function analyserComptabilite(): Promise<AiResult> {
+  const ecritures = await prisma.ecritureCompta.findMany({
+    orderBy: { date: "desc" },
+  });
+  if (ecritures.length === 0) {
+    return { ok: false, error: "Aucune écriture importée. Importe d'abord un relevé Indy." };
+  }
+
+  const a = agreger(ecritures);
+  const parCat = depensesParCategorie(ecritures);
+
+  // Détail des dépenses par fournisseur (regroupe les libellés récurrents).
+  const parFournisseur = new Map<string, { total: number; occurrences: number; dernier: string }>();
+  for (const e of ecritures) {
+    if (e.type !== "depense" && e.type !== "a_categoriser") continue;
+    if (e.sens !== "sortie") continue;
+    // Normalise le libellé (retire numéros de facture, dates…) pour regrouper.
+    const cle = e.libelle
+      .toLowerCase()
+      .replace(/\d+/g, "")
+      .replace(/[^a-zàâçéèêëîïôûùüœ ]/gi, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 40) || e.libelle;
+    const g = parFournisseur.get(cle) ?? { total: 0, occurrences: 0, dernier: "" };
+    g.total += e.montant;
+    g.occurrences += 1;
+    const d = e.date.toISOString().slice(0, 10);
+    if (d > g.dernier) g.dernier = d;
+    parFournisseur.set(cle, g);
+  }
+  const topFournisseurs = [...parFournisseur.entries()]
+    .sort((x, y) => y[1].total - x[1].total)
+    .slice(0, 20);
+
+  const contexte = [
+    `Période couverte : ${ecritures.length} écritures, du ${ecritures.at(-1)!.date.toISOString().slice(0, 10)} au ${ecritures[0].date.toISOString().slice(0, 10)}.`,
+    `Recettes totales : ${euros(a.recettes)}. Dépenses pro : ${euros(a.depenses)}. Résultat : ${euros(a.resultatPro)}. Rémunération versée : ${euros(a.remuneration)}. Trésorerie : ${euros(a.tresorerie)}.`,
+    ``,
+    `Dépenses par catégorie :`,
+    ...parCat.map((c) => `- ${c.label} : ${euros(c.montant)}`),
+    ``,
+    `Dépenses par fournisseur (total sur la période, nb de fois, dernière) :`,
+    ...topFournisseurs.map(
+      ([nom, g]) => `- ${nom} : ${euros(g.total)} (${g.occurrences}× , dernière ${g.dernier})`,
+    ),
+  ].join("\n");
+
+  const messages: AiMessage[] = [
+    {
+      role: "system",
+      content:
+        VOIX +
+        " Tu es le regard comptable/financier de ce freelance : tu chasses le gaspillage et l'optimisation, factuellement, sans moraliser.",
+    },
+    {
+      role: "user",
+      content:
+        `Analyse mes dépenses professionnelles ci-dessous et sors une note courte et actionnable. Structure :\n` +
+        `1) Constat en 1 phrase (santé financière, poids des dépenses vs recettes).\n` +
+        `2) 3 à 6 pistes d'optimisation CONCRÈTES : abonnements en doublon ou redondants (ex. plusieurs LLM/hébergeurs), abonnements peu utiles, montants qui montent, dépenses qui ressemblent à du perso passé en pro. Cite les fournisseurs et les montants.\n` +
+        `3) Ce qu'il vaut mieux NE PAS couper (outils essentiels au revenu).\n` +
+        `Sois direct, chiffré, priorise par euros économisables. Pas de tableau, des puces courtes.\n\n` +
+        `Mes données :\n${contexte}`,
+    },
+  ];
+
+  return chat({ provider: "deepseek", messages, temperature: 0.4, maxTokens: 1100 });
+}
+
+// --- Comptabilité : catégorisation assistée des « à catégoriser » (DeepSeek JSON) ---
+export type PropositionCategorie = { id: string; categorie: string };
+
+export async function categoriserEcrituresIA(
+  lignes: { id: string; libelle: string; libelleCompte: string; sens: string; montant: number }[],
+): Promise<
+  { ok: true; propositions: PropositionCategorie[] } | { ok: false; error: string }
+> {
+  if (lignes.length === 0) return { ok: true, propositions: [] };
+
+  const cats = CATEGORIES_COMPTA.map((c) => `${c.value} (${c.label})`).join(", ");
+  const liste = lignes
+    .map((l) => `- id=${l.id} | ${l.sens === "entree" ? "reçu" : "dépensé"} ${l.montant.toFixed(2)}€ | « ${l.libelle} »`)
+    .join("\n");
+
+  const messages: AiMessage[] = [
+    {
+      role: "system",
+      content:
+        "Tu classes des opérations bancaires d'un développeur web freelance dans des catégories comptables. " +
+        "Tu réponds UNIQUEMENT en JSON valide, sans commentaire.",
+    },
+    {
+      role: "user",
+      content:
+        `Catégories disponibles (utilise la clé de gauche) : ${cats}.\n\n` +
+        `Pour chaque opération, choisis la catégorie la plus probable d'après le libellé du marchand. ` +
+        `Indices : infomaniak/hostinger/neon/vercel/ovh = hebergement ; openai/anthropic/deepseek/claude/google cloud = abonnements ; ` +
+        `indy = comptabilite ; jeux vidéo (ankama, wakfu, dofus, steam…) = ce n'est pas pro, mets remuneration ; ` +
+        `urssaf = urssaf ; restaurant/repas = repas. Si vraiment incertain, garde a_categoriser.\n\n` +
+        `Opérations :\n${liste}\n\n` +
+        `Réponds : {"propositions":[{"id":"...","categorie":"cle"}]}`,
+    },
+  ];
+
+  const res = await chat({ provider: "deepseek", jsonMode: true, temperature: 0, messages });
+  if (!res.ok) return res;
+
+  try {
+    const raw = JSON.parse(res.text);
+    const arr = Array.isArray(raw?.propositions) ? raw.propositions : [];
+    const propositions: PropositionCategorie[] = arr
+      .filter((p: unknown): p is Record<string, unknown> => !!p && typeof p === "object")
+      .map((p: Record<string, unknown>) => ({
+        id: String(p.id ?? ""),
+        categorie: String(p.categorie ?? "a_categoriser"),
+      }))
+      .filter((p: PropositionCategorie) => p.id.length > 0);
+    return { ok: true, propositions };
+  } catch {
+    return { ok: false, error: "Réponse IA illisible (JSON invalide)." };
+  }
 }

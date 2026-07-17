@@ -12,6 +12,7 @@ import {
   genererIntroRapport,
   genererIntroPortail,
   suggererTaches,
+  analyserComptabilite,
   type TacheSuggeree,
 } from "@/lib/ai/assistant";
 import type { AiResult } from "@/lib/ai/client";
@@ -46,6 +47,10 @@ export async function actionIntroRapport(
 
 export async function actionIntroPortail(clientId: string): Promise<AiResult> {
   return genererIntroPortail(clientId);
+}
+
+export async function actionAnalyseCompta(): Promise<AiResult> {
+  return analyserComptabilite();
 }
 
 export async function actionSuggererTaches(): Promise<

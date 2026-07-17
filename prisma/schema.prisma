@@ -415,6 +415,35 @@ model Prospect {
   @@index([filtreTier])
 }
 
+// --- Comptabilité : import du journal Indy (relevé pro) ---
+
+// Une écriture comptable = une opération bancaire pro (une ligne du journal Indy,
+// hors ligne miroir « Banque »). L'import est idempotent : `hash` (contenu +
+// rang d'occurrence) dédoublonne les ré-imports de périodes qui se chevauchent.
+// `montant` est toujours positif ; `sens` porte le flux (entree = argent reçu,
+// sortie = argent dépensé). `type`/`categorie` sont éditables (cf. src/lib/compta.ts).
+model EcritureCompta {
+  id            String   @id @default(cuid())
+  date          DateTime
+  libelle       String // libellé de l'opération (ex. « Payment from Bluelemon »)
+  compte        String // code du compte de contrepartie Indy (ex. « 613600 »)
+  libelleCompte String // libellé brut du compte Indy (« Abonnements logiciels »)
+  montant       Float    @default(0) // toujours positif (euros)
+  sens          String // entree | sortie (flux sur le compte pro)
+  type          String // recette | depense | remuneration | apport | a_categoriser
+  categorie     String // clé éditable (cf. CATEGORIES_COMPTA)
+  periode       String // « AAAA-MM » (mois de l'opération)
+  hash          String   @unique // dédup ré-import (contenu + rang d'occurrence)
+  source        String   @default("indy") // indy | manuel
+  note          String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([periode])
+  @@index([type])
+  @@index([date])
+}
+
 // To-do quotidienne générée (F12).
 model Tache {
   id         String   @id @default(cuid())

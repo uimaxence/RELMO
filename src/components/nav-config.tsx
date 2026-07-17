@@ -8,6 +8,7 @@ import {
   Gift,
   Target,
   BarChart3,
+  Calculator,
 } from "lucide-react";
 
 // Source unique de la navigation (sidebar + fil d'Ariane du header).
@@ -32,6 +33,7 @@ export const NAV: NavItem[] = [
   { title: "Pipeline & devis", href: "/pipeline", icon: Handshake },
   { title: "Livrables du mois", href: "/livrables", icon: ListChecks },
   { title: "MRR", href: "/mrr", icon: Euro },
+  { title: "Comptabilité", href: "/comptabilite", icon: Calculator },
   { title: "Acquisition", href: "/acquisition", icon: BarChart3 },
   { title: "Wish-list", href: "/wishlist", icon: Gift },
 ];
