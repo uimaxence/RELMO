@@ -46,6 +46,33 @@ export async function VueProspecter() {
     p.statut === "contacte" && !!p.relanceLe && p.relanceLe <= now;
   const nbRelancesDues = prospects.filter(relanceDue).length;
 
+  // Double scrape (mode partenaire) : on relie chaque partenaire à ses clients
+  // aval extraits. Requête dédiée (les downstream peuvent être hors des 500
+  // premiers) + index par nom de partenaire pour l'étiquette « Via X ».
+  const downstreamRows = await prisma.prospect.findMany({
+    where: { sourcePartnerId: { not: null } },
+    orderBy: [{ score: "desc" }, { createdAt: "desc" }],
+    select: {
+      id: true, nom: true, site: true, ville: true, score: true, filtreTier: true,
+      statutAudit: true, statut: true, pointsFaibles: true, extractionConfidence: true,
+      sourcePartnerId: true,
+    },
+  });
+  const partnerNom = new Map(
+    prospects.filter((p) => p.cible === "partenaire").map((p) => [p.id, p.nom]),
+  );
+  // Statut du partenaire → un downstream est « bloqué » tant qu'il n'est pas converti.
+  const partnerStatut = new Map(
+    prospects.filter((p) => p.cible === "partenaire").map((p) => [p.id, p.statut]),
+  );
+  const downstreamParPartenaire = new Map<string, typeof downstreamRows>();
+  for (const d of downstreamRows) {
+    const key = d.sourcePartnerId!;
+    const arr = downstreamParPartenaire.get(key) ?? [];
+    arr.push(d);
+    downstreamParPartenaire.set(key, arr);
+  }
+
   const envoisMois = premiersContactsMois + relancesFaitesMois;
   const tauxReponse = contactesTotal > 0 ? Math.round((reponduTotal / contactesTotal) * 100) : null;
   const alerteReponse =
@@ -104,6 +131,24 @@ export async function VueProspecter() {
       relanceDue: relanceDue(p),
       nbRelances: p.nbRelances,
       reponduLeFr: p.reponduLe ? dateFr(p.reponduLe) : null,
+      portfolioSize: p.portfolioSize,
+      downstream: (downstreamParPartenaire.get(p.id) ?? []).map((d) => ({
+        id: d.id,
+        nom: d.nom,
+        site: d.site,
+        ville: d.ville,
+        score: d.score,
+        filtreTier: d.filtreTier,
+        statutAudit: d.statutAudit,
+        statut: d.statut,
+        pointsFaibles: d.pointsFaibles,
+        extractionConfidence: d.extractionConfidence,
+      })),
+      sourcePartnerId: p.sourcePartnerId,
+      sourcePartnerNom: p.sourcePartnerId ? partnerNom.get(p.sourcePartnerId) ?? null : null,
+      extractionConfidence: p.extractionConfidence,
+      // Bloqué tant que le prescripteur n'est pas converti (garde-fou §7).
+      downstreamBloque: !!p.sourcePartnerId && partnerStatut.get(p.sourcePartnerId) !== "converti",
     }));
 
   const kpis = [

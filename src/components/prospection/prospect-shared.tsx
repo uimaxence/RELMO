@@ -14,6 +14,9 @@ import {
   MessageSquare,
   BellRing,
   Search as SearchIcon,
+  Lock,
+  Network,
+  ExternalLink,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -23,7 +26,7 @@ import { labelOf, PROSPECT_STATUTS, CANAUX_CONTACT } from "@/lib/constants";
 import { metierByCle } from "@/lib/prospection/metiers-partenaires";
 import { updateEmailProspect } from "@/app/actions/prospection";
 import { emailValide } from "@/lib/prospection/email";
-import type { ProspectRow } from "./prospect-row";
+import type { ProspectRow, DownstreamLite } from "./prospect-row";
 
 // Éléments de présentation partagés entre la liste et la fiche latérale.
 
@@ -211,6 +214,16 @@ export function StatutTags({ p }: { p: ProspectRow }) {
           <SearchIcon className="size-3" /> À qualifier
         </Badge>
       ) : null}
+      {p.sourcePartnerNom ? (
+        <Badge variant="outline" className="gap-1 font-normal text-muted-foreground">
+          <Network className="size-3" /> Via {p.sourcePartnerNom}
+        </Badge>
+      ) : null}
+      {p.downstreamBloque ? (
+        <Badge className="gap-1 border-warning-ink/30 bg-warning-bg font-normal text-warning-ink">
+          <Lock className="size-3" /> Partenaire à activer
+        </Badge>
+      ) : null}
       {!emailValide(p.email) && ["nouveau", "a_contacter"].includes(p.statut) ? (
         <Badge className="gap-1 border-warning-ink/30 bg-warning-bg font-normal text-warning-ink">
           <MailX className="size-3" /> Sans e-mail
@@ -239,6 +252,107 @@ export function StatutTags({ p }: { p: ProspectRow }) {
           <BellRing className="size-3" /> Relance
         </Badge>
       ) : null}
+    </div>
+  );
+}
+
+// Confiance d'extraction du portefeuille (§4) : HIGH alt/lien, MEDIUM fichier,
+// LOW témoignage (à vérifier manuellement).
+const CONFIANCE_STYLE: Record<string, { cls: string; label: string }> = {
+  HIGH: { cls: "bg-positive-bg text-positive-ink", label: "Fiable" },
+  MEDIUM: { cls: "bg-warning-bg text-warning-ink", label: "À confirmer" },
+  LOW: { cls: "bg-muted text-muted-foreground", label: "À vérifier" },
+};
+
+export function ConfidenceBadge({ c }: { c: string | null }) {
+  if (!c) return null;
+  const s = CONFIANCE_STYLE[c] ?? CONFIANCE_STYLE.LOW;
+  return (
+    <span className={`inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium ${s.cls}`}>
+      {s.label}
+    </span>
+  );
+}
+
+// Portefeuille aval d'un partenaire (double scrape §2/§4) : ses clients extraits,
+// chacun avec son score client et ses problèmes factuels, prêts pour l'audit-cadeau.
+export function PortefeuilleAval({ p }: { p: ProspectRow }) {
+  if (p.cible !== "partenaire") return null;
+  const items = p.downstream ?? [];
+  if (!items.length && !p.portfolioSize) return null;
+
+  const audite = (d: DownstreamLite) => d.statutAudit === "ok" || d.statutAudit === "aucun_site";
+  const nbAudites = items.filter(audite).length;
+  // Auditabilité (§3 signal, §4 sortie) : part des clients audités qui ont au moins
+  // un problème factuel détecté. C'est la charge commerciale (« 28/40 ont X »).
+  const avecProbleme = items.filter(
+    (d) => audite(d) && (d.statutAudit === "aucun_site" || (d.pointsFaibles?.trim().length ?? 0) > 0),
+  ).length;
+  const auditabilite = nbAudites ? Math.round((avecProbleme / nbAudites) * 100) : null;
+
+  return (
+    <div className="space-y-2 rounded-lg border p-3">
+      <div className="flex items-center justify-between gap-2">
+        <span className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+          <Network className="size-3.5" /> Portefeuille aval
+        </span>
+        <span className="font-mono text-xs tabular-nums text-muted-foreground">
+          {items.length || p.portfolioSize} client{(items.length || p.portfolioSize || 0) > 1 ? "s" : ""}
+        </span>
+      </div>
+
+      {nbAudites > 0 ? (
+        <p className="rounded-md bg-muted px-2.5 py-1.5 text-[11px] leading-relaxed text-muted-foreground">
+          {avecProbleme}/{nbAudites} client{nbAudites > 1 ? "s" : ""} audité{nbAudites > 1 ? "s" : ""} avec un
+          problème web détecté
+          {auditabilite != null ? ` (auditabilité ${auditabilite}%)` : ""}. Voilà l&apos;argumentaire à présenter
+          au partenaire.
+        </p>
+      ) : (
+        <p className="rounded-md bg-muted px-2.5 py-1.5 text-[11px] text-muted-foreground">
+          Clients extraits, en attente d&apos;audit (lance l&apos;audit en lot pour les scorer).
+        </p>
+      )}
+
+      <ul className="divide-y">
+        {items.slice(0, 40).map((d) => (
+          <li key={d.id} className="flex items-center gap-2 py-1.5">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-1.5">
+                <span className="truncate text-xs font-medium" title={d.nom}>
+                  {d.nom}
+                </span>
+                <ConfidenceBadge c={d.extractionConfidence} />
+                {d.site ? (
+                  <a
+                    href={d.site}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-muted-foreground hover:text-foreground"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <ExternalLink className="size-3" />
+                  </a>
+                ) : null}
+              </div>
+              {d.pointsFaibles ? (
+                <p className="truncate text-[11px] text-muted-foreground" title={d.pointsFaibles}>
+                  {d.pointsFaibles}
+                </p>
+              ) : (
+                <p className="text-[11px] text-muted-foreground">
+                  {audite(d) ? "Aucun problème factuel" : "Pas encore audité"}
+                </p>
+              )}
+            </div>
+            {d.filtreTier ? (
+              <TierBadge tier={d.filtreTier} total={null} />
+            ) : d.score != null ? (
+              <ScorePill score={d.score} />
+            ) : null}
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

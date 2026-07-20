@@ -364,6 +364,17 @@ model Prospect {
   nbAvis         Int? // nombre d'avis Google (proxy volume de portefeuille)
   noteGoogle     Float? // note moyenne Google
 
+  // Double scrape (cf. relmo-mode-partenaire.md §2, §4). Côté PARTENAIRE : on
+  // extrait son portefeuille aval visible (logos/références/témoignages) et on
+  // ré-injecte chaque client dans le pipeline d'audit client standard.
+  portfolioSize  Int? // nb de clients extraits du portefeuille (partenaire)
+  // Côté CLIENT issu d'un partenaire (self-relation) : traçabilité jusqu'au
+  // prescripteur + confiance de l'extraction (tri du travail de vérification).
+  sourcePartnerId      String? // Prospect partenaire d'où vient cette fiche
+  sourcePartner        Prospect?  @relation("PartnerDownstream", fields: [sourcePartnerId], references: [id], onDelete: SetNull)
+  downstream           Prospect[] @relation("PartnerDownstream")
+  extractionConfidence String? // HIGH (alt/lien) | MEDIUM (nom de fichier) | LOW (témoignage)
+
   // Audit du site (rempli à la demande)
   statutAudit      String  @default("a_auditer") // a_auditer | ok | aucun_site | erreur
   score            Int? // 0-100 (potentiel commercial estimé)
@@ -413,6 +424,7 @@ model Prospect {
   @@index([cible])
   @@index([segment])
   @@index([filtreTier])
+  @@index([sourcePartnerId])
 }
 
 // --- Comptabilité : import du journal Indy (relevé pro) ---

@@ -17,6 +17,8 @@ import {
   Inbox,
   Undo2,
   Rocket,
+  Network,
+  Lock,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -35,6 +37,7 @@ import {
   marquerReponse,
   annulerProspect,
   basculerSegmentProspect,
+  scannerPortefeuille,
 } from "@/app/actions/prospection";
 import { emailValide } from "@/lib/prospection/email";
 import type { ProspectRow } from "./prospect-row";
@@ -46,6 +49,7 @@ import {
   EmailInline,
   CanalIcon,
   Accroche,
+  PortefeuilleAval,
 } from "./prospect-shared";
 
 // Panneau latéral (détail façon Notion) : audit, qualification, pipeline, actions.
@@ -64,6 +68,30 @@ export function ProspectSheet({ prospect, onClose }: { prospect: ProspectRow | n
     start(async () => {
       await fn();
       if (msg) toast.success(msg);
+    });
+  }
+
+  // Mise en file d'envoi : peut être refusée côté serveur (downstream d'un
+  // partenaire pas encore actif, §7) → on remonte l'erreur au lieu d'un faux succès.
+  function mettreEnFile() {
+    if (!p) return;
+    start(async () => {
+      const res = await changerStatutProspect(p.id, "a_contacter");
+      if (res.ok) toast.success("Ajouté à la file d'envoi.");
+      else toast.error(res.error ?? "Impossible de mettre en file.");
+    });
+  }
+
+  // Scan manuel du portefeuille aval d'un partenaire (double scrape).
+  function scanner() {
+    if (!p) return;
+    start(async () => {
+      const res = await scannerPortefeuille(p.id);
+      if (res.ok && !res.error) {
+        toast.success(`${res.crees ?? 0} client(s) ajouté(s) (${res.vus ?? 0} détecté(s)). Lance l'audit en lot pour les scorer.`);
+      } else {
+        toast.error(res.error ?? "Scan impossible.");
+      }
     });
   }
 
@@ -138,6 +166,23 @@ export function ProspectSheet({ prospect, onClose }: { prospect: ProspectRow | n
                 </button>
               ) : null}
 
+              {/* Provenance : fiche issue du portefeuille d'un partenaire */}
+              {p.sourcePartnerNom ? (
+                <p
+                  className={`flex items-start gap-1.5 rounded-md px-2.5 py-1.5 text-xs ${
+                    p.downstreamBloque ? "bg-warning-bg text-warning-ink" : "bg-muted text-muted-foreground"
+                  }`}
+                >
+                  {p.downstreamBloque ? <Lock className="mt-0.5 size-3.5 shrink-0" /> : <Network className="mt-0.5 size-3.5 shrink-0" />}
+                  <span>
+                    Extrait du portefeuille de <strong>{p.sourcePartnerNom}</strong>.
+                    {p.downstreamBloque
+                      ? " Aucun démarchage tant que ce partenaire n'est pas activé (converti)."
+                      : " Partenaire actif : démarchage autorisé."}
+                  </span>
+                </p>
+              ) : null}
+
               {/* Non audité / erreur */}
               {!audite ? (
                 <div className="space-y-2">
@@ -190,6 +235,25 @@ export function ProspectSheet({ prospect, onClose }: { prospect: ProspectRow | n
                   ) : null}
 
                   {p.cible !== "partenaire" ? <FiltreBreakdown p={p} /> : null}
+
+                  {/* Portefeuille aval du partenaire (double scrape §2/§4) */}
+                  {p.cible === "partenaire" && !p.flagConcurrent && !p.flagAQualifier ? (
+                    <div className="space-y-2">
+                      <PortefeuilleAval p={p} />
+                      {p.site ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={scanner}
+                          disabled={pending}
+                          title="Extraire (ou rafraîchir) les clients affichés sur son site"
+                        >
+                          {pending ? <Loader2 className="animate-spin" /> : <Network className="text-brand" />}
+                          {p.portfolioSize ? "Rescanner le portefeuille" : "Scanner le portefeuille"}
+                        </Button>
+                      ) : null}
+                    </div>
+                  ) : null}
 
                   {p.atouts ? (
                     <div className="flex flex-wrap gap-1.5">
@@ -273,11 +337,17 @@ export function ProspectSheet({ prospect, onClose }: { prospect: ProspectRow | n
                 {audite && !contacte && !enFile && !p.flagConcurrent && !p.flagAQualifier ? (
                   <Button
                     size="sm"
-                    onClick={() => run(() => changerStatutProspect(p.id, "a_contacter"), "Ajouté à la file d'envoi.")}
-                    disabled={pending || !emailValide(p.email)}
-                    title={emailValide(p.email) ? "Le mail partira au prochain lancement de campagne" : "Ajoute un e-mail valide d'abord"}
+                    onClick={mettreEnFile}
+                    disabled={pending || !emailValide(p.email) || p.downstreamBloque}
+                    title={
+                      p.downstreamBloque
+                        ? "Prospect issu d'un partenaire : active d'abord le partenaire (convertis-le)"
+                        : emailValide(p.email)
+                          ? "Le mail partira au prochain lancement de campagne"
+                          : "Ajoute un e-mail valide d'abord"
+                    }
                   >
-                    <Inbox /> Mettre en file d&apos;envoi
+                    {p.downstreamBloque ? <Lock /> : <Inbox />} Mettre en file d&apos;envoi
                   </Button>
                 ) : null}
                 {enFile ? (

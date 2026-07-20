@@ -7,6 +7,7 @@ import { prisma } from "@/lib/db";
 import { collecter, domaineDe, placesConfigured, type LeadBrut } from "@/lib/prospection/places";
 import { analyzeSite, type Contacts } from "@/lib/prospection/audit";
 import { analyseVisuelle } from "@/lib/prospection/visuel";
+import { scraperPortefeuille, type PortefeuilleItem } from "@/lib/prospection/portefeuille";
 import {
   auditerProspect,
   auditerProspectPro,
@@ -318,12 +319,99 @@ function contactsData(p: { email: string | null; telephone: string | null }, con
   };
 }
 
+// Double scrape (cf. relmo-mode-partenaire.md §2, §4) : chaque entreprise extraite
+// du portefeuille d'un partenaire devient un prospect CLIENT normal (cible=client,
+// statutAudit=a_auditer), rattaché au prescripteur et tracé par sa confiance
+// d'extraction. Le pré-audit se fait ensuite via le batch client existant
+// (auditerNonAudites). Dédup : domaine @unique en priorité, sinon nom + partenaire.
+// Une fiche cliente déjà connue SANS prescripteur est rattachée au partenaire.
+async function creerDownstream(
+  partner: { id: string; nom: string; ville: string | null; region: string | null; campagne: string | null },
+  items: PortefeuilleItem[],
+): Promise<number> {
+  let crees = 0;
+  for (const it of items) {
+    const domaine = it.site ? domaineDe(it.site) || null : null;
+
+    if (domaine) {
+      const ex = await prisma.prospect.findUnique({
+        where: { domaine },
+        select: { id: true, sourcePartnerId: true },
+      });
+      if (ex) {
+        // Fiche connue sans prescripteur → on la rattache (jamais voler un downstream
+        // déjà relié à un autre partenaire, ni relier le partenaire à lui-même).
+        if (!ex.sourcePartnerId && ex.id !== partner.id) {
+          await prisma.prospect.update({
+            where: { id: ex.id },
+            data: { sourcePartnerId: partner.id, extractionConfidence: it.confidence },
+          });
+        }
+        continue;
+      }
+    } else {
+      // Sans domaine : dédup souple sur (nom + même partenaire) pour ne pas
+      // recréer la même entreprise à chaque re-scan.
+      const dup = await prisma.prospect.findFirst({
+        where: { nom: it.nom, sourcePartnerId: partner.id },
+        select: { id: true },
+      });
+      if (dup) continue;
+    }
+
+    await prisma.prospect.create({
+      data: {
+        nom: it.nom,
+        site: it.site,
+        domaine,
+        // Bassin probable = celui du partenaire (hypothèse locale). La ville reste
+        // vide tant que l'audit ne l'a pas confirmée : on n'invente pas (§7).
+        ville: null,
+        region: partner.region,
+        activite: `Client de ${partner.nom}`,
+        cible: "client",
+        segment: "classique",
+        campagne: partner.campagne,
+        sourcePartnerId: partner.id,
+        extractionConfidence: it.confidence,
+        statutAudit: "a_auditer",
+        note: `Extrait du portefeuille de ${partner.nom} (confiance ${it.confidence}, source ${it.source}${it.site ? `, ${it.site}` : ""}).`,
+      },
+    });
+    crees++;
+  }
+  return crees;
+}
+
+// Extrait le portefeuille aval d'un partenaire et crée/rattache les downstream.
+// Renvoie le nb d'entreprises vues et créées. N'écrit `portfolioSize` que si le
+// scrape a réussi (une zone au moins) — sinon on laisse la valeur existante.
+async function scraperEtLierPortefeuille(partner: {
+  id: string;
+  nom: string;
+  ville: string | null;
+  region: string | null;
+  campagne: string | null;
+  site: string | null;
+}): Promise<{ vus: number; crees: number; zones: number }> {
+  const porte = await scraperPortefeuille(partner.site, { max: 15 });
+  if (!porte.ok) return { vus: 0, crees: 0, zones: 0 };
+  const crees = await creerDownstream(partner, porte.items);
+  await prisma.prospect.update({
+    where: { id: partner.id },
+    data: { portfolioSize: porte.items.length },
+  });
+  return { vus: porte.items.length, crees, zones: porte.zonesTrouvees };
+}
+
 // Audit « partenaire » (cible V2) : flags décidés en code (détection déterministe
 // prioritaire), pitch DeepSeek seulement pour les fiches éligibles. Concurrent = stop.
 async function auditerProspectPartenaire(p: {
   id: string;
   nom: string;
   ville: string | null;
+  region: string | null;
+  campagne: string | null;
   activite: string | null;
   site: string | null;
   metier: string | null;
@@ -434,6 +522,13 @@ async function auditerProspectPartenaire(p: {
       ...contact,
     },
   });
+
+  // Double scrape (§2) : seulement pour un partenaire ÉLIGIBLE et NON concurrent.
+  // Les agences web (autoPitch=false) et les concurrents sont sortis plus haut →
+  // jamais double-scrapés automatiquement (§7).
+  if (!concurrent) {
+    await scraperEtLierPortefeuille(p);
+  }
 
   revalidatePath(PAGE);
   return { ok: true, score: concurrent ? 0 : ia.data.score };
@@ -575,6 +670,41 @@ export async function basculerSegmentProspect(
   });
   revalidatePath(PAGE);
   return { ok: true, segment };
+}
+
+// Scan MANUEL du portefeuille aval d'un partenaire (re-scan, ou rattrapage d'un
+// partenaire audité avant la feature). Réservé aux partenaires éligibles : un
+// concurrent ou une agence « à qualifier » n'est jamais double-scrapé (§7).
+export async function scannerPortefeuille(
+  partnerId: string,
+): Promise<{ ok: boolean; vus?: number; crees?: number; zones?: number; error?: string }> {
+  const p = await prisma.prospect.findUnique({ where: { id: partnerId } });
+  if (!p) return { ok: false, error: "Fiche introuvable." };
+  if (p.cible !== "partenaire") return { ok: false, error: "Le scan de portefeuille ne concerne que les partenaires." };
+  if (p.flagConcurrent) return { ok: false, error: "Concurrent : jamais de scan automatique de son portefeuille." };
+  if (p.flagAQualifier) return { ok: false, error: "Agence à qualifier manuellement : pas de scan automatique." };
+  if (!p.site) return { ok: false, error: "Ce partenaire n'a pas de site à scanner." };
+
+  const r = await scraperEtLierPortefeuille(p);
+  revalidatePath(PAGE);
+  if (r.zones === 0 && r.vus === 0) {
+    return { ok: true, vus: 0, crees: 0, zones: 0, error: "Aucun portefeuille visible détecté sur le site." };
+  }
+  return { ok: true, ...r };
+}
+
+// Garde-fou §7 : un downstream (issu d'un partenaire) ne peut ENTRER en démarchage
+// automatique tant que son prescripteur n'est pas « actif » = converti (relation
+// d'apport engagée). Protège la réputation du partenaire. Renvoie true si bloqué.
+async function downstreamOutreachBloque(p: {
+  sourcePartnerId: string | null;
+}): Promise<boolean> {
+  if (!p.sourcePartnerId) return false; // pas un downstream → aucun blocage
+  const partner = await prisma.prospect.findUnique({
+    where: { id: p.sourcePartnerId },
+    select: { statut: true },
+  });
+  return partner?.statut !== "converti";
 }
 
 // Audit d'un prospect : analyse site + DeepSeek (score + accroches) + enrichissement
@@ -762,14 +892,26 @@ export async function convertirEnClient(
   return { ok: true, clientId: client.id };
 }
 
-// Change le statut de suivi (à contacter / écarté / nouveau).
+// Change le statut de suivi (à contacter / écarté / nouveau). Garde-fou §7 : on
+// refuse la mise en file d'envoi d'un downstream tant que son partenaire n'est
+// pas actif (converti). Les autres transitions passent toujours.
 export async function changerStatutProspect(
   id: string,
   statut: string,
-): Promise<void> {
+): Promise<{ ok: boolean; error?: string }> {
+  if (statut === "a_contacter") {
+    const p = await prisma.prospect.findUnique({ where: { id }, select: { sourcePartnerId: true } });
+    if (p && (await downstreamOutreachBloque(p))) {
+      return {
+        ok: false,
+        error: "Prospect issu d'un partenaire : pas de démarchage tant que le partenaire n'est pas actif (converti).",
+      };
+    }
+  }
   await prisma.prospect.update({ where: { id }, data: { statut } });
   revalidatePath(PAGE);
   revalidatePath("/prospection");
+  return { ok: true };
 }
 
 // « Mail envoyé » : entre dans le pipeline. Enregistre le message RÉELLEMENT
@@ -869,6 +1011,10 @@ export async function envoyerMailProspect(
   }
   if (p.flagAQualifier) {
     return { ok: false, error: "Fiche « à qualifier manuellement » : pas d'envoi automatique." };
+  }
+  // Garde-fou §7 : jamais contacter l'aval avant que le prescripteur soit actif.
+  if (await downstreamOutreachBloque(p)) {
+    return { ok: false, error: "Prospect issu d'un partenaire non encore actif : envoi bloqué (protège le partenaire)." };
   }
   if (!emailValide(p.email)) return { ok: false, error: "EMAIL_INVALIDE" };
 
