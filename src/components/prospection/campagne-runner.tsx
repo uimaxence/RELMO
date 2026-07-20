@@ -36,11 +36,24 @@ export type CampagneRow = {
   meta: string; // activité · ville
   email: string;
   accroche: string;
+  cible: string; // client | partenaire
+  segment: string; // classique | pro
 };
 
 type Statut = "idle" | "sending" | "sent" | "error";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+// Filtre de la file d'envoi par cible : les partenaires (apporteurs) et les
+// clients finaux se démarchent séparément — sans ça, une grosse file de clients
+// noie les partenaires dans le lot des 20 premiers.
+type Cible = { value: string; label: string; test: (r: CampagneRow) => boolean };
+const CIBLES: Cible[] = [
+  { value: "tous", label: "Tous", test: () => true },
+  { value: "partenaires", label: "Partenaires", test: (r) => r.cible === "partenaire" },
+  { value: "clients", label: "Clients", test: (r) => r.cible !== "partenaire" && r.segment !== "pro" },
+  { value: "pro", label: "Pro", test: (r) => r.cible !== "partenaire" && r.segment === "pro" },
+];
 
 export function CampagneRunner({
   prospects,
@@ -56,6 +69,7 @@ export function CampagneRunner({
   expediteur: string;
 }) {
   const [rows, setRows] = useState(prospects);
+  const [cible, setCible] = useState("tous");
   const [selected, setSelected] = useState<Set<string>>(
     () => new Set(prospects.filter((p) => emailValide(p.email)).map((p) => p.id)),
   );
@@ -79,15 +93,38 @@ export function CampagneRunner({
       return next;
     });
 
-  // File d'envoi : sélectionnés + email valide + pas déjà envoyés, plafonnée.
+  const testCible = CIBLES.find((c) => c.value === cible)?.test ?? (() => true);
+
+  // Lignes visibles = celles de la cible choisie (la liste et l'envoi ne portent
+  // que sur ce filtre).
+  const visibles = useMemo(() => rows.filter(testCible), [rows, cible]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // File d'envoi : visibles + sélectionnés + email valide + pas déjà envoyés, plafonnée.
   const file = useMemo(
     () =>
-      rows.filter(
+      visibles.filter(
         (r) => selected.has(r.id) && emailValide(r.email) && statut[r.id] !== "sent",
       ),
-    [rows, selected, statut],
+    [visibles, selected, statut],
   );
   const aEnvoyer = Math.min(file.length, plafond);
+
+  // Compteur par cible (nb de mails prêts à partir : email valide, pas envoyé).
+  const compter = (test: (r: CampagneRow) => boolean) =>
+    rows.filter((r) => test(r) && emailValide(r.email) && statut[r.id] !== "sent").length;
+
+  // Cocher / décocher toutes les lignes visibles envoyables (utile sur 600 fiches).
+  function cocherVisibles(on: boolean) {
+    setSelected((s) => {
+      const next = new Set(s);
+      for (const r of visibles) {
+        if (!emailValide(r.email) || statut[r.id] === "sent") continue;
+        if (on) next.add(r.id);
+        else next.delete(r.id);
+      }
+      return next;
+    });
+  }
 
   function persistEmail(id: string, email: string) {
     startPersist(async () => {
@@ -142,13 +179,50 @@ export function CampagneRunner({
 
   return (
     <div className="space-y-3">
+      {/* Filtre par cible : partenaires vs clients finaux vs Pro */}
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap gap-1 rounded-lg bg-muted p-1">
+          {CIBLES.map((c) => (
+            <button
+              key={c.value}
+              onClick={() => setCible(c.value)}
+              disabled={running}
+              className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors disabled:opacity-50 ${
+                cible === c.value ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {c.label}
+              <span className="font-mono tabular-nums opacity-60">{compter(c.test)}</span>
+            </button>
+          ))}
+        </div>
+        <div className="ml-auto flex items-center gap-2">
+          <button
+            onClick={() => cocherVisibles(true)}
+            disabled={running}
+            className="text-xs text-muted-foreground hover:text-foreground disabled:opacity-50"
+          >
+            Tout cocher
+          </button>
+          <span className="text-muted-foreground">·</span>
+          <button
+            onClick={() => cocherVisibles(false)}
+            disabled={running}
+            className="text-xs text-muted-foreground hover:text-foreground disabled:opacity-50"
+          >
+            Décocher
+          </button>
+        </div>
+      </div>
+
       {/* Barre d'action */}
       <div className="flex flex-wrap items-center gap-3 rounded-xl border bg-card px-4 py-3">
         <div className="text-sm">
           <span className="font-mono font-medium tabular-nums">{aEnvoyer}</span>{" "}
           <span className="text-muted-foreground">
             mail{aEnvoyer > 1 ? "s" : ""} à envoyer
-            {file.length > plafond ? ` (plafond ${plafond}/lancement)` : ""}
+            {cible !== "tous" ? ` (${CIBLES.find((c) => c.value === cible)?.label.toLowerCase()})` : ""}
+            {file.length > plafond ? ` — plafond ${plafond}/lancement` : ""}
           </span>
         </div>
         <div className="ml-auto flex items-center gap-2">
@@ -186,9 +260,14 @@ export function CampagneRunner({
         </p>
       ) : null}
 
-      {/* Liste */}
+      {/* Liste (filtrée par cible) */}
+      {visibles.length === 0 ? (
+        <Card className="py-8 text-center text-sm text-muted-foreground">
+          Aucune fiche dans ce filtre.
+        </Card>
+      ) : null}
       <div className="space-y-2">
-        {rows.map((r) => {
+        {visibles.map((r) => {
           const st = statut[r.id] ?? "idle";
           const valide = emailValide(r.email);
           const objet = extraireObjet(r.accroche).objet;
@@ -208,6 +287,15 @@ export function CampagneRunner({
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="font-medium">{r.nom}</span>
                     <span className="text-xs text-muted-foreground">{r.meta}</span>
+                    {r.cible === "partenaire" ? (
+                      <span className="rounded bg-accent-brand-bg px-1.5 py-0.5 text-[10px] font-medium text-accent-brand">
+                        Partenaire
+                      </span>
+                    ) : r.segment === "pro" ? (
+                      <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                        Pro
+                      </span>
+                    ) : null}
                     <StatutPill st={st} err={erreur[r.id]} />
                   </div>
 

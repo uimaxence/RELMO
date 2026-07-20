@@ -25,8 +25,12 @@ export async function VueEnvoyer() {
         flagConcurrent: false,
         flagAQualifier: false,
       },
-      orderBy: [{ score: "desc" }, { createdAt: "desc" }],
-      take: 300,
+      // Partenaires d'abord (cible=partenaire trie avant client), puis meilleur
+      // score : sans ça, une grosse file de clients finaux enterrait les
+      // partenaires au-delà du plafond de chargement. Le filtre par cible côté
+      // client (CampagneRunner) fait ensuite le tri fin.
+      orderBy: [{ cible: "desc" }, { score: "desc" }, { createdAt: "desc" }],
+      take: 1000,
     }),
     prisma.prospect.count({ where: { contacteLe: { gte: startJourUTC } } }),
     prisma.prospect.count({ where: { relanceFaiteLe: { gte: startJourUTC } } }),
@@ -42,6 +46,8 @@ export async function VueEnvoyer() {
     meta: [p.activite, p.ville].filter(Boolean).join(" · ") || "—",
     email: p.email ?? "",
     accroche: p.accrocheEmail ?? "",
+    cible: p.cible,
+    segment: p.segment,
   }));
 
   return (
