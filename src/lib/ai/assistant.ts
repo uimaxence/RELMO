@@ -302,6 +302,64 @@ export async function genererIntroRapport(
   return chat({ provider: "deepseek", messages, temperature: 0.5, maxTokens: 400 });
 }
 
+// --- Synthèse de l'évolution SEO du mois (DeepSeek), à partir des positions ---
+export type MotCleSynthese = {
+  texte: string;
+  position: number | null;
+  positionPrec: number | null;
+  volume: number | null;
+};
+
+export async function genererSyntheseSeo(
+  clientId: string,
+  periode: string,
+  motsCles: MotCleSynthese[],
+  visibilite?: { nbMotsCles: number | null; traficEstime: number | null } | null,
+): Promise<AiResult> {
+  const c = await prisma.client.findUnique({ where: { id: clientId } });
+  if (!c) return { ok: false, error: "Client introuvable." };
+  if (motsCles.length === 0) {
+    return { ok: false, error: "Aucun mot-clé suivi : ajoute des mots-clés au site." };
+  }
+
+  const liste = motsCles
+    .map((m) => {
+      const pos = m.position != null ? `position ${m.position}` : "non positionné (>100)";
+      const evo =
+        m.position != null && m.positionPrec != null
+          ? m.positionPrec === m.position
+            ? ", stable"
+            : m.positionPrec > m.position
+              ? `, en hausse depuis ${m.positionPrec}`
+              : `, en baisse depuis ${m.positionPrec}`
+          : "";
+      const vol = m.volume != null ? ` [${m.volume} rech./mois]` : "";
+      return `- "${m.texte}" : ${pos}${evo}${vol}`;
+    })
+    .join("\n");
+
+  const visBloc =
+    visibilite?.nbMotsCles != null
+      ? `\nVisibilité globale du domaine : ${visibilite.nbMotsCles} mots-clés positionnés` +
+        (visibilite.traficEstime != null ? `, ~${visibilite.traficEstime} visites/mois estimées.` : ".")
+      : "";
+
+  const messages: AiMessage[] = [
+    { role: "system", content: VOIX },
+    {
+      role: "user",
+      content:
+        `Rédige une courte synthèse (3-5 phrases) de l'évolution du référencement Google ` +
+        `du client « ${c.nom} » pour ${periode}, destinée à être lue par le client (non technique). ` +
+        `Explique simplement les mouvements de position (une position plus basse est meilleure : 1 = 1re place), ` +
+        `mets en avant les progrès, reste honnête sur ce qui recule sans dramatiser. ` +
+        `Données de positions :\n${liste}${visBloc}`,
+    },
+  ];
+
+  return chat({ provider: "deepseek", messages, temperature: 0.4, maxTokens: 400 });
+}
+
 // --- Suggestions de tâches par l'IA, à partir de TOUT le profil (DeepSeek) ---
 export type TacheSuggeree = {
   libelle: string;

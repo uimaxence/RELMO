@@ -10,10 +10,12 @@ import {
   genererRelanceNego,
   genererAccrochesProspection,
   genererIntroRapport,
+  genererSyntheseSeo,
   genererIntroPortail,
   suggererTaches,
   analyserComptabilite,
   type TacheSuggeree,
+  type MotCleSynthese,
 } from "@/lib/ai/assistant";
 import type { AiResult } from "@/lib/ai/client";
 
@@ -43,6 +45,15 @@ export async function actionIntroRapport(
   livres: string[],
 ): Promise<AiResult> {
   return genererIntroRapport(clientId, periode, livres);
+}
+
+export async function actionSyntheseSeo(
+  clientId: string,
+  periode: string,
+  motsCles: MotCleSynthese[],
+  visibilite?: { nbMotsCles: number | null; traficEstime: number | null } | null,
+): Promise<AiResult> {
+  return genererSyntheseSeo(clientId, periode, motsCles, visibilite);
 }
 
 export async function actionIntroPortail(clientId: string): Promise<AiResult> {

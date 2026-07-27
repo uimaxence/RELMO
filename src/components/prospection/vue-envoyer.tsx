@@ -77,6 +77,7 @@ export async function VueEnvoyer() {
         modeleRemu={reglage.modeleRemu}
         relanceAutoActive={reglage.relanceAutoActive}
         prospectionAutoActive={reglage.prospectionAutoActive}
+        rapportMensuelActif={reglage.rapportMensuelActif}
       />
 
       {!reglage.lienRealisation ? (

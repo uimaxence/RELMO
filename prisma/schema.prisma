@@ -34,6 +34,7 @@ model Client {
   factures     Facture[]
   brief        Brief?
   updates      PortailUpdate[]
+  rapports     RapportMensuel[]
 }
 
 // Un site géré pour un client (1 client -> 0..n sites).
@@ -49,14 +50,92 @@ model Site {
   statut          String    @default("actif") // actif | en_pause | archive
   dateMiseEnLigne DateTime?
   notes           String?
+  // Suivi SEO (F8) : cible de relevé DataForSEO. `domaine` = hôte normalisé
+  // interrogé (à défaut on retombe sur `url`). Localisation/langue du SERP.
+  domaine         String? // ex. "restaurant-x.fr" (sans http, sans www)
+  seoLocation     String? // location_name DataForSEO (ex. "France", "Lyon,France")
+  seoLangue       String    @default("fr")
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
-  client    Client     @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  contrats  Contrat[]
-  devis     Devis[]
-  factures  Facture[]
+  client       Client           @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  contrats     Contrat[]
+  devis        Devis[]
+  factures     Facture[]
+  motsCles     MotCle[]
+  visibilites  SiteVisibilite[]
 
+  @@index([clientId])
+}
+
+// --- Phase 2 : suivi de positions SEO (F8) + rapport mensuel client (F7) ---
+
+// Un mot-clé cible suivi pour un site. Relevé chaque mois (position du domaine
+// dans le SERP Google via DataForSEO).
+model MotCle {
+  id        String   @id @default(cuid())
+  siteId    String
+  texte     String
+  actif     Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  site      Site             @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  releves   PositionReleve[]
+
+  @@index([siteId])
+}
+
+// Relevé mensuel de la position d'un mot-clé (série temporelle → courbe).
+// `position` null = domaine non trouvé dans le SERP (hors top 100).
+model PositionReleve {
+  id       String   @id @default(cuid())
+  motCleId String
+  periode  String // "AAAA-MM"
+  position Int?
+  url      String? // URL positionnée du domaine
+  volume   Int? // volume de recherche mensuel estimé
+  releveLe DateTime @default(now())
+
+  motCle MotCle @relation(fields: [motCleId], references: [id], onDelete: Cascade)
+
+  @@unique([motCleId, periode])
+  @@index([motCleId])
+}
+
+// Vue d'ensemble mensuelle de la visibilité d'un domaine (DataForSEO Labs).
+model SiteVisibilite {
+  id           String   @id @default(cuid())
+  siteId       String
+  periode      String // "AAAA-MM"
+  nbMotsCles   Int? // nb de mots-clés sur lesquels le domaine ressort
+  traficEstime Int? // trafic organique mensuel estimé
+  releveLe     DateTime @default(now())
+
+  site Site @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
+  @@unique([siteId, periode])
+  @@index([siteId])
+}
+
+// Le rapport mensuel d'un client : brouillon éditable (intro + commentaire +
+// actions à faire) pré-généré, puis publié sur le portail et envoyé par email.
+model RapportMensuel {
+  id          String    @id @default(cuid())
+  clientId    String
+  periode     String // "AAAA-MM"
+  statut      String    @default("brouillon") // brouillon | envoye
+  intro       String? // paragraphe d'ouverture (IA, éditable)
+  syntheseSeo String? // synthèse de l'évolution SEO (IA, éditable)
+  commentaire String? // note libre de l'admin au client
+  actions     String? // actions à faire le mois prochain
+  envoyeLe    DateTime?
+  messageId   String? // Message-ID de l'email envoyé au client
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@unique([clientId, periode])
   @@index([clientId])
 }
 
@@ -327,6 +406,8 @@ model Reglage {
   // Prospection automatique (cron 2×/jour : découverte + audit → file d'envoi). OFF par défaut.
   prospectionAutoActive Boolean @default(false)
   prospectionRotation   Int     @default(0) // compteur de rotation villes/secteurs entre runs
+  // Rapport mensuel client (cron le 1er du mois : relevé SEO + brouillons + rappel). OFF par défaut.
+  rapportMensuelActif   Boolean @default(false)
   updatedAt          DateTime @updatedAt
 }
 

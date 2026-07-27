@@ -162,6 +162,47 @@ export const reglageCampagneSchema = z.object({
   relanceAutoActive: z.preprocess((v) => v === "on" || v === "true" || v === true, z.boolean()),
   // Interrupteur de la prospection automatique (découverte + audit → file d'envoi).
   prospectionAutoActive: z.preprocess((v) => v === "on" || v === "true" || v === true, z.boolean()),
+  // Interrupteur des rapports mensuels client (cron le 1er du mois : relevé SEO + brouillons + rappel).
+  rapportMensuelActif: z.preprocess((v) => v === "on" || v === "true" || v === true, z.boolean()),
+});
+
+// --- Suivi SEO (F8) : cible de relevé DataForSEO sur un site ---
+export const siteSeoSchema = z.object({
+  siteId: z.string().min(1, requis),
+  domaine: optionalString,
+  seoLocation: optionalString,
+  seoLangue: z.preprocess(
+    (v) => (v === "" || v === null ? "fr" : String(v).trim().toLowerCase()),
+    z.string().min(2).max(5),
+  ),
+});
+
+// Un mot-clé cible ajouté à un site.
+export const motCleSchema = z.object({
+  siteId: z.string().min(1, requis),
+  texte: z.string().trim().min(1, requis).max(120, "Mot-clé trop long."),
+});
+
+// Champs éditables du rapport mensuel client (intro + synthèse + notes).
+export const rapportSchema = z.object({
+  clientId: z.string().min(1, requis),
+  periode: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, "Période invalide."),
+  intro: nullableText,
+  syntheseSeo: nullableText,
+  commentaire: nullableText,
+  actions: nullableText,
+});
+
+// Envoi du rapport au client (enregistre les champs édités, publie sur le portail
+// puis envoie l'email). Reprend les champs de rapportSchema + l'origine.
+export const envoyerRapportSchema = z.object({
+  clientId: z.string().min(1, requis),
+  periode: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, "Période invalide."),
+  intro: nullableText,
+  syntheseSeo: nullableText,
+  commentaire: nullableText,
+  actions: nullableText,
+  origin: optionalString,
 });
 
 // Brief de démarrage rempli par le client dans son portail (F15).

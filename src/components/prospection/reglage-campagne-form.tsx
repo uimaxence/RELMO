@@ -31,6 +31,7 @@ export function ReglageCampagneForm({
   modeleRemu,
   relanceAutoActive,
   prospectionAutoActive,
+  rapportMensuelActif,
 }: {
   signatureEmail: string | null;
   optOutTexte: string | null;
@@ -38,6 +39,7 @@ export function ReglageCampagneForm({
   modeleRemu: string;
   relanceAutoActive: boolean;
   prospectionAutoActive: boolean;
+  rapportMensuelActif: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [state, formAction, pending] = useActionState(
@@ -161,6 +163,26 @@ export function ReglageCampagneForm({
                     Pays de la Loire) et les met dans la file d&apos;envoi. Ceux avec email sont
                     prêts à envoyer en 1 clic ; ceux sans email restent « à traiter » (tu complètes
                     l&apos;adresse). Aucun envoi automatique. Nécessite GOOGLE_PLACES_API_KEY (et GEMINI_API_KEY).
+                  </span>
+                </span>
+              </label>
+            </div>
+            <div className="rounded-md border border-border bg-muted/30 p-3">
+              <label htmlFor="rapportMensuelActif" className="flex items-start gap-3 text-sm">
+                <input
+                  id="rapportMensuelActif"
+                  name="rapportMensuelActif"
+                  type="checkbox"
+                  defaultChecked={rapportMensuelActif}
+                  className="mt-0.5 size-4 shrink-0 accent-primary"
+                />
+                <span>
+                  <span className="font-medium">Rapports mensuels client</span>
+                  <span className="mt-0.5 block text-muted-foreground">
+                    Le 1er de chaque mois, relève les positions SEO (mots-clés suivis par site),
+                    pré-génère un brouillon de rapport par client actif, et t&apos;envoie un rappel
+                    pour le relire et l&apos;envoyer. Aucun envoi automatique au client. Nécessite
+                    CRON_SECRET et les identifiants DataForSEO.
                   </span>
                 </span>
               </label>

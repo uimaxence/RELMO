@@ -15,6 +15,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { SiteStatusBadge, ContratStatusBadge } from "@/components/status-badge";
+import { SeoCard } from "@/components/sites/seo-card";
+import { dataforseoConfigured } from "@/lib/seo/dataforseo";
 import { euros, dateFr } from "@/lib/format";
 import { labelOf, RECURRENCES } from "@/lib/constants";
 
@@ -35,10 +37,21 @@ export default async function SiteDetailPage({
         orderBy: { dateDebut: "desc" },
         include: { engagements: { orderBy: { libelle: "asc" } } },
       },
+      motsCles: {
+        orderBy: { createdAt: "asc" },
+        include: { releves: { orderBy: { periode: "desc" }, take: 1 } },
+      },
     },
   });
 
   if (!site) notFound();
+
+  const motsClesSeo = site.motsCles.map((m) => ({
+    id: m.id,
+    texte: m.texte,
+    dernierePosition: m.releves[0]?.position ?? null,
+    dernierePeriode: m.releves[0]?.periode ?? null,
+  }));
 
   const meta = [
     site.stack ? { label: "Stack", value: site.stack } : null,
@@ -113,6 +126,18 @@ export default async function SiteDetailPage({
           <p className="mt-3 whitespace-pre-wrap text-sm">{site.notes}</p>
         ) : null}
       </div>
+
+      <SeoCard
+        site={{
+          id: site.id,
+          domaine: site.domaine,
+          url: site.url,
+          seoLocation: site.seoLocation,
+          seoLangue: site.seoLangue,
+        }}
+        motsCles={motsClesSeo}
+        configured={dataforseoConfigured()}
+      />
 
       <div>
         <div className="mb-3 flex items-center justify-between">

@@ -4,6 +4,7 @@
   "crons": [
     { "path": "/api/cron/relances", "schedule": "0 8 * * *" },
     { "path": "/api/cron/prospection", "schedule": "0 7 * * *" },
-    { "path": "/api/cron/prospection", "schedule": "0 13 * * *" }
+    { "path": "/api/cron/prospection", "schedule": "0 13 * * *" },
+    { "path": "/api/cron/rapports", "schedule": "0 9 1 * *" }
   ]
 }
