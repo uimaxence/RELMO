@@ -10,7 +10,8 @@ import {
   CIBLES_SITE,
   OBJECTIFS_SITE,
 } from "@/lib/constants";
-import { currentPeriode } from "@/lib/periode";
+import { currentPeriode, periodeBounds } from "@/lib/periode";
+import { listerCommits, githubConfigured } from "@/lib/git/github";
 import { currentWeek } from "@/lib/semaine";
 import { agreger, depensesParCategorie, CATEGORIES_COMPTA } from "@/lib/compta";
 import { COMMISSION_CREATION_PCT } from "@/lib/prospection/metiers-partenaires";
@@ -354,6 +355,66 @@ export async function genererSyntheseSeo(
         `Explique simplement les mouvements de position (une position plus basse est meilleure : 1 = 1re place), ` +
         `mets en avant les progrès, reste honnête sur ce qui recule sans dramatiser. ` +
         `Données de positions :\n${liste}${visBloc}`,
+    },
+  ];
+
+  return chat({ provider: "deepseek", messages, temperature: 0.4, maxTokens: 400 });
+}
+
+// --- Résumé du travail réalisé d'après les commits Git (DeepSeek) ---
+// Charge les sites du client, lit les commits GitHub du mois, et en tire un
+// paragraphe lisible par le client (non technique). Sert le rapport mensuel.
+export async function genererResumeTravail(
+  clientId: string,
+  periode: string,
+): Promise<AiResult> {
+  if (!githubConfigured()) {
+    return { ok: false, error: "Token GitHub absent. Ajoute GITHUB_TOKEN dans .env." };
+  }
+  const c = await prisma.client.findUnique({
+    where: { id: clientId },
+    include: { sites: true },
+  });
+  if (!c) return { ok: false, error: "Client introuvable." };
+
+  const repos = c.sites.filter((s) => s.repoGitUrl);
+  if (repos.length === 0) {
+    return { ok: false, error: "Aucun repo Git renseigné sur les sites de ce client." };
+  }
+
+  const { start, nextStart } = periodeBounds(periode);
+  const lignes: string[] = [];
+  let echecs = 0;
+  for (const site of repos) {
+    const res = await listerCommits({ repoUrl: site.repoGitUrl!, since: start, until: nextStart });
+    if (!res.ok) {
+      echecs++;
+      continue;
+    }
+    for (const commit of res.commits) {
+      lignes.push(`- ${commit.message}`);
+    }
+  }
+
+  if (lignes.length === 0) {
+    return {
+      ok: false,
+      error: echecs
+        ? "Impossible de lire les commits (repo/token ?)."
+        : "Aucun commit sur la période.",
+    };
+  }
+
+  const messages: AiMessage[] = [
+    { role: "system", content: VOIX },
+    {
+      role: "user",
+      content:
+        `À partir des messages de commits Git ci-dessous (le travail technique réalisé sur ` +
+        `le(s) site(s) de « ${c.nom} » en ${periode}), rédige un court paragraphe (3-5 phrases) ` +
+        `destiné au client, NON technique, qui explique en clair ce qui a été fait et en quoi ` +
+        `c'est utile pour lui. Regroupe les petites tâches, ignore le jargon (refacto, lint, ` +
+        `bump de version, typos). Ne liste pas les commits un par un.\n\nCommits :\n${lignes.join("\n")}`,
     },
   ];
 

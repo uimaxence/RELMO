@@ -64,3 +64,35 @@ export async function releverMaintenant(
   revalidatePath(`/sites/${siteId}`);
   return { ok: res.ok, message: res.message };
 }
+
+// Relève tous les sites suivis d'un client, pour la période du rapport. Utilisé
+// par le bouton « Relever le SEO » de la page rapport.
+export async function releverClient(
+  _prev: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const clientId = String(formData.get("clientId") ?? "");
+  const periode = String(formData.get("periode") ?? "") || currentPeriode();
+  if (!clientId) return { ok: false, message: "Client manquant." };
+
+  const sites = await prisma.site.findMany({
+    where: { clientId, motsCles: { some: { actif: true } } },
+    select: { id: true },
+  });
+  if (sites.length === 0) {
+    return { ok: false, message: "Aucun site avec des mots-clés suivis pour ce client." };
+  }
+
+  let total = 0;
+  let dernier = "";
+  for (const s of sites) {
+    const res = await releverSite(s.id, periode);
+    total += res.releves;
+    if (!res.ok) dernier = res.message;
+  }
+  revalidatePath(`/clients/${clientId}/rapport`);
+  return {
+    ok: total > 0,
+    message: total > 0 ? `Relevé effectué : ${total} mot(s)-clé(s).` : dernier || "Aucun relevé.",
+  };
+}

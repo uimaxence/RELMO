@@ -7,7 +7,11 @@ import { sansCadratin } from "@/lib/prospection/email";
 import { currentPeriode, shiftPeriode, periodeLabel } from "@/lib/periode";
 import { releverSite } from "@/lib/seo/releve";
 import { getRapportData } from "@/lib/rapport";
-import { genererIntroRapport, genererSyntheseSeo } from "@/lib/ai/assistant";
+import {
+  genererIntroRapport,
+  genererSyntheseSeo,
+  genererResumeTravail,
+} from "@/lib/ai/assistant";
 
 // Cron mensuel des rapports client (cf. vercel.json, le 1er du mois). Séquence,
 // pour le mois écoulé :
@@ -90,12 +94,17 @@ export async function GET(req: Request) {
           data.seo.visibilite,
         )
       : null;
+    // Résumé du travail d'après les commits Git (si un repo est renseigné + token).
+    const travail = client.sites.some((s) => s.repoGitUrl)
+      ? await genererResumeTravail(client.id, periode)
+      : null;
 
     await prisma.rapportMensuel.create({
       data: {
         clientId: client.id,
         periode,
         intro: intro.ok ? intro.text : null,
+        resumeTravail: travail?.ok ? travail.text : null,
         syntheseSeo: synthese?.ok ? synthese.text : null,
       },
     });

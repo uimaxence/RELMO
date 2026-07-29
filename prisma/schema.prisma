@@ -123,11 +123,12 @@ model RapportMensuel {
   id          String    @id @default(cuid())
   clientId    String
   periode     String // "AAAA-MM"
-  statut      String    @default("brouillon") // brouillon | envoye
-  intro       String? // paragraphe d'ouverture (IA, éditable)
-  syntheseSeo String? // synthèse de l'évolution SEO (IA, éditable)
-  commentaire String? // note libre de l'admin au client
-  actions     String? // actions à faire le mois prochain
+  statut       String    @default("brouillon") // brouillon | envoye
+  intro        String? // paragraphe d'ouverture (IA, éditable)
+  resumeTravail String? // synthèse du travail réalisé, d'après les commits Git (IA, éditable)
+  syntheseSeo  String? // synthèse de l'évolution SEO (IA, éditable)
+  commentaire  String? // note libre de l'admin au client
+  actions      String? // actions à faire le mois prochain
   envoyeLe    DateTime?
   messageId   String? // Message-ID de l'email envoyé au client
   createdAt   DateTime  @default(now())

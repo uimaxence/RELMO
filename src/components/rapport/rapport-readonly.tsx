@@ -87,10 +87,19 @@ export function RapportReadonly({ data }: { data: RapportData }) {
         </section>
       ) : null}
 
+      {rapport?.resumeTravail ? (
+        <section>
+          <h2 className="mb-1 text-sm font-medium uppercase tracking-wider text-muted-foreground">
+            Travail réalisé
+          </h2>
+          <p className="whitespace-pre-wrap text-sm leading-relaxed">{rapport.resumeTravail}</p>
+        </section>
+      ) : null}
+
       {data.sites.length > 0 ? (
         <section className="space-y-4">
           <h2 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">
-            Travail livré
+            Détail des livrables
           </h2>
           {data.sites.map((site) => (
             <div key={site.nom}>

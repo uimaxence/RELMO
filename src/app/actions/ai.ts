@@ -11,6 +11,7 @@ import {
   genererAccrochesProspection,
   genererIntroRapport,
   genererSyntheseSeo,
+  genererResumeTravail,
   genererIntroPortail,
   suggererTaches,
   analyserComptabilite,
@@ -54,6 +55,13 @@ export async function actionSyntheseSeo(
   visibilite?: { nbMotsCles: number | null; traficEstime: number | null } | null,
 ): Promise<AiResult> {
   return genererSyntheseSeo(clientId, periode, motsCles, visibilite);
+}
+
+export async function actionResumeTravail(
+  clientId: string,
+  periode: string,
+): Promise<AiResult> {
+  return genererResumeTravail(clientId, periode);
 }
 
 export async function actionIntroPortail(clientId: string): Promise<AiResult> {

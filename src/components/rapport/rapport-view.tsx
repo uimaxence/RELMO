@@ -9,6 +9,7 @@ import {
   ArrowDown,
   Minus,
   Check,
+  GitCommitHorizontal,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -18,7 +19,8 @@ import { PositionsChart } from "@/components/rapport/positions-chart";
 import { euros, dateFr } from "@/lib/format";
 import type { RapportData } from "@/lib/rapport";
 import { updateRapport, envoyerRapport } from "@/app/actions/rapports";
-import { actionIntroRapport, actionSyntheseSeo } from "@/app/actions/ai";
+import { releverClient } from "@/app/actions/seo";
+import { actionIntroRapport, actionSyntheseSeo, actionResumeTravail } from "@/app/actions/ai";
 
 // Corps éditable du rapport mensuel : intro + synthèse SEO (pré-remplissables par
 // IA), tableau de positions + courbe, livrables, commentaire et actions. Un seul
@@ -27,14 +29,17 @@ import { actionIntroRapport, actionSyntheseSeo } from "@/app/actions/ai";
 export function RapportView({ data }: { data: RapportData }) {
   const formRef = useRef<HTMLFormElement>(null);
   const [pending, start] = useTransition();
+  const [seoPending, startSeo] = useTransition();
   const [action, setAction] = useState<"save" | "send" | null>(null);
 
   const [intro, setIntro] = useState(data.rapport?.intro ?? "");
+  const [resumeTravail, setResumeTravail] = useState(data.rapport?.resumeTravail ?? "");
   const [syntheseSeo, setSyntheseSeo] = useState(data.rapport?.syntheseSeo ?? "");
   const [commentaire, setCommentaire] = useState(data.rapport?.commentaire ?? "");
   const [actions, setActions] = useState(data.rapport?.actions ?? "");
   const [aiIntro, setAiIntro] = useState(false);
   const [aiSeo, setAiSeo] = useState(false);
+  const [aiTravail, setAiTravail] = useState(false);
 
   const { seo } = data;
 
@@ -74,6 +79,25 @@ export function RapportView({ data }: { data: RapportData }) {
     setAiSeo(false);
     if (res.ok) setSyntheseSeo(res.text);
     else toast.error(res.error);
+  }
+
+  async function genTravail() {
+    setAiTravail(true);
+    const res = await actionResumeTravail(data.client.id, data.periode);
+    setAiTravail(false);
+    if (res.ok) setResumeTravail(res.text);
+    else toast.error(res.error);
+  }
+
+  function releverSeo() {
+    const fd = new FormData();
+    fd.set("clientId", data.client.id);
+    fd.set("periode", data.periode);
+    startSeo(async () => {
+      const res = await releverClient(null, fd);
+      if (res?.ok) toast.success(res.message);
+      else toast.error(res?.message ?? "Relevé impossible.");
+    });
   }
 
   const envoi = data.rapport;
@@ -120,9 +144,22 @@ export function RapportView({ data }: { data: RapportData }) {
       {/* SEO */}
       {seo.suivi ? (
         <section className="space-y-4 border-b pb-5">
-          <h2 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">
-            Visibilité Google
-          </h2>
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">
+              Visibilité Google
+            </h2>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={releverSeo}
+              disabled={seoPending}
+              className="print-hide"
+            >
+              <RefreshCw className={seoPending ? "animate-spin" : ""} />
+              {seoPending ? "Relevé…" : "Relever le SEO"}
+            </Button>
+          </div>
 
           {seo.visibilite ? (
             <div className="grid grid-cols-2 gap-4">
@@ -212,10 +249,37 @@ export function RapportView({ data }: { data: RapportData }) {
         <input type="hidden" name="syntheseSeo" value={syntheseSeo} />
       )}
 
+      {/* Résumé du travail réalisé (d'après les commits Git) */}
+      <section className="space-y-2 border-b pb-5">
+        <h2 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">
+          Travail réalisé
+        </h2>
+        <p className="hidden whitespace-pre-wrap text-sm leading-relaxed print:block">
+          {resumeTravail}
+        </p>
+        <div className="print-hide space-y-2">
+          <Textarea
+            name="resumeTravail"
+            value={resumeTravail}
+            onChange={(e) => setResumeTravail(e.target.value)}
+            placeholder="Résumé de ce qui a été fait ce mois-ci (ou générez-le depuis les commits Git)…"
+            className="min-h-[80px] text-sm leading-relaxed"
+          />
+          <Button type="button" variant="ghost" size="sm" onClick={genTravail} disabled={aiTravail}>
+            {resumeTravail ? (
+              <RefreshCw className={aiTravail ? "animate-spin" : ""} />
+            ) : (
+              <GitCommitHorizontal className="text-brand" />
+            )}
+            {resumeTravail ? "Régénérer depuis les commits" : "Générer depuis les commits (IA)"}
+          </Button>
+        </div>
+      </section>
+
       {/* Livrables du mois */}
       <section className="space-y-6 border-b pb-5">
         <h2 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">
-          Travail livré
+          Détail des livrables
         </h2>
         {data.sites.length === 0 ? (
           <p className="text-sm text-muted-foreground">Aucun livrable prévu sur cette période.</p>

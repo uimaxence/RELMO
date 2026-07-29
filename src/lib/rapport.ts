@@ -52,6 +52,7 @@ export type RapportData = {
     id: string;
     statut: string;
     intro: string | null;
+    resumeTravail: string | null;
     syntheseSeo: string | null;
     commentaire: string | null;
     actions: string | null;
@@ -195,6 +196,7 @@ export async function getRapportData(
           id: rapport.id,
           statut: rapport.statut,
           intro: rapport.intro,
+          resumeTravail: rapport.resumeTravail,
           syntheseSeo: rapport.syntheseSeo,
           commentaire: rapport.commentaire,
           actions: rapport.actions,
@@ -241,12 +243,15 @@ export function construireEmailRapport(
     );
   }
 
-  const lignesLivre = data.livres.length
-    ? "Ce que nous avons réalisé ce mois-ci :\n" +
-      data.livres.map((l) => `- ${l}`).join("\n")
-    : null;
-
   const rapport = data.rapport;
+  // Le résumé rédigé (d'après les commits) prime ; sinon la liste des livrables.
+  const lignesLivre = rapport?.resumeTravail?.trim()
+    ? rapport.resumeTravail.trim()
+    : data.livres.length
+      ? "Ce que nous avons réalisé ce mois-ci :\n" +
+        data.livres.map((l) => `- ${l}`).join("\n")
+      : null;
+
   const corps = [
     `Bonjour ${client.nom},`,
     rapport?.intro?.trim() ||

@@ -18,12 +18,13 @@ export async function updateRapport(
 ): Promise<FormState> {
   const parsed = parseForm(rapportSchema, formData);
   if (!parsed.ok) return parsed.state;
-  const { clientId, periode, intro, syntheseSeo, commentaire, actions } = parsed.data;
+  const { clientId, periode, intro, resumeTravail, syntheseSeo, commentaire, actions } =
+    parsed.data;
 
   await prisma.rapportMensuel.upsert({
     where: { clientId_periode: { clientId, periode } },
-    create: { clientId, periode, intro, syntheseSeo, commentaire, actions },
-    update: { intro, syntheseSeo, commentaire, actions },
+    create: { clientId, periode, intro, resumeTravail, syntheseSeo, commentaire, actions },
+    update: { intro, resumeTravail, syntheseSeo, commentaire, actions },
   });
   revalidatePath(`/clients/${clientId}/rapport`);
   return { ok: true, message: "Rapport enregistré." };
@@ -36,13 +37,14 @@ export async function envoyerRapport(
 ): Promise<FormState> {
   const parsed = parseForm(envoyerRapportSchema, formData);
   if (!parsed.ok) return parsed.state;
-  const { clientId, periode, intro, syntheseSeo, commentaire, actions, origin } = parsed.data;
+  const { clientId, periode, intro, resumeTravail, syntheseSeo, commentaire, actions, origin } =
+    parsed.data;
 
   // Enregistre d'abord les éventuelles éditions non sauvegardées (envoi = save + send).
   const rapport = await prisma.rapportMensuel.upsert({
     where: { clientId_periode: { clientId, periode } },
-    create: { clientId, periode, intro, syntheseSeo, commentaire, actions },
-    update: { intro, syntheseSeo, commentaire, actions },
+    create: { clientId, periode, intro, resumeTravail, syntheseSeo, commentaire, actions },
+    update: { intro, resumeTravail, syntheseSeo, commentaire, actions },
   });
 
   const data = await getRapportData(clientId, periode);
