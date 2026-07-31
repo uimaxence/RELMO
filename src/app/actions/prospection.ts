@@ -7,6 +7,8 @@ import { prisma } from "@/lib/db";
 import { collecter, domaineDe, placesConfigured, type LeadBrut } from "@/lib/prospection/places";
 import { analyzeSite, type Contacts } from "@/lib/prospection/audit";
 import { analyseVisuelle } from "@/lib/prospection/visuel";
+import { enrichirSeo } from "@/lib/prospection/seo-enrich";
+import { dataforseoConfigured } from "@/lib/seo/dataforseo";
 import { scraperPortefeuille, type PortefeuilleItem } from "@/lib/prospection/portefeuille";
 import {
   auditerProspect,
@@ -68,6 +70,9 @@ const AUDIT_CONCURRENCE = 4; // audits menés en parallèle dans un lot
 const AUDIT_LOT = 4; // taille d'un lot d'audit par appel (tient sous 60 s)
 const ENRICH = String(process.env.ENRICH).toLowerCase() === "true";
 const SCORE_ENRICH_MIN = Number(process.env.SCORE_ENRICH_MIN || 65);
+// Enrichissement SEO payant (DataForSEO) à l'audit, réservé aux prospects au score
+// >= SCORE_ENRICH_MIN. ON quand DataForSEO est configuré ; PROSPECT_SEO_AUDIT=0 coupe.
+const SEO_AUDIT = process.env.PROSPECT_SEO_AUDIT !== "0";
 
 export { placesConfigured };
 
@@ -750,12 +755,55 @@ export async function auditerUnProspect(
   let linkedin = "";
   let effectif: number | null = null;
   let signauxCroissance: string[] = [];
-  if (ENRICH && (ia.data.score ?? 0) >= SCORE_ENRICH_MIN) {
-    const e = await enrichirDirigeant({ nom: p.nom, ville: p.ville, activite: p.activite });
-    dirigeant = e.dirigeant;
-    linkedin = e.linkedin;
-    effectif = e.effectif;
-    signauxCroissance = e.signauxCroissance;
+  let accrocheEmail = ia.data.accrocheEmail;
+  let accrocheLinkedin = ia.data.accrocheLinkedin;
+  let seo: Awaited<ReturnType<typeof enrichirSeo>> = null;
+
+  // Enrichissements payants, réservés aux prospects prometteurs (même gate score).
+  if ((ia.data.score ?? 0) >= SCORE_ENRICH_MIN) {
+    const [e, s] = await Promise.all([
+      ENRICH
+        ? enrichirDirigeant({ nom: p.nom, ville: p.ville, activite: p.activite })
+        : Promise.resolve(null),
+      SEO_AUDIT && dataforseoConfigured()
+        ? enrichirSeo({ domaine: p.domaine, site: p.site, activite: p.activite, ville: p.ville })
+        : Promise.resolve(null),
+    ]);
+    if (e) {
+      dirigeant = e.dirigeant;
+      linkedin = e.linkedin;
+      effectif = e.effectif;
+      signauxCroissance = e.signauxCroissance;
+    }
+    seo = s;
+
+    // Si on a des données SEO réelles, on RÉGÉNÈRE l'accroche pour qu'elle s'appuie
+    // sur ces chiffres (angle « invisibilité locale » concret) plutôt que sur la
+    // simple heuristique villeDansTitre.
+    if (seo) {
+      const ia2 = await auditerProspect({
+        nom: p.nom,
+        ville: p.ville,
+        activite: p.activite,
+        statutSite: statut,
+        signaux: {
+          ...signals,
+          villeDansTitre,
+          seo: {
+            motsClesPositionnes: seo.nbMotsCles,
+            traficMensuelEstime: seo.trafic,
+            rechercheLocale: seo.motCleLocal,
+            positionLocale: seo.positionLocale, // null = absent du top 100
+          },
+        },
+        visuel,
+        stylesUtilisateur: await stylesUtilisateur(),
+      });
+      if (ia2.ok) {
+        accrocheEmail = ia2.data.accrocheEmail;
+        accrocheLinkedin = ia2.data.accrocheLinkedin;
+      }
+    }
   }
 
   // Filtre en or : score structuré (probabilité de signer un récurrent), calculé
@@ -785,8 +833,13 @@ export async function auditerUnProspect(
       design: (visuel ? `[${visuel.modernite}] ${visuel.constat}` : ia.data.design) || null,
       anciennete: ia.data.anciennete || null,
       pointsFaibles: ia.data.pointsFaibles.join(" • ") || null,
-      accrocheEmail: ia.data.accrocheEmail || null,
-      accrocheLinkedin: ia.data.accrocheLinkedin || null,
+      accrocheEmail: accrocheEmail || null,
+      accrocheLinkedin: accrocheLinkedin || null,
+      seoNbMotsCles: seo?.nbMotsCles ?? null,
+      seoTrafic: seo?.trafic ?? null,
+      seoMotCleLocal: seo?.motCleLocal ?? null,
+      seoPositionLocale: seo?.positionLocale ?? null,
+      seoReleveLe: seo ? new Date() : null,
       email: contacts.bestEmail || p.email,
       emailsTous: contacts.emails.join(" ") || null,
       telephone: telephoneFinal,

@@ -37,6 +37,11 @@ export type ProspectRow = {
   design: string | null;
   anciennete: string | null;
   pointsFaibles: string | null;
+  // Enrichissement SEO (DataForSEO), relevé à l'audit des prospects au bon score.
+  seoNbMotsCles: number | null;
+  seoTrafic: number | null;
+  seoMotCleLocal: string | null;
+  seoPositionLocale: number | null;
   cible: string; // client | partenaire
   segment: string; // classique | pro
   metier: string | null;

@@ -234,6 +234,47 @@ export function ProspectSheet({ prospect, onClose }: { prospect: ProspectRow | n
                     </div>
                   ) : null}
 
+                  {p.seoNbMotsCles != null ||
+                  p.seoTrafic != null ||
+                  p.seoMotCleLocal ? (
+                    <div className="rounded-md border border-brand/20 bg-brand/5 p-2.5 text-sm">
+                      <p className="mb-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                        Référencement Google (mesuré)
+                      </p>
+                      <ul className="space-y-0.5 text-muted-foreground">
+                        {p.seoNbMotsCles != null ? (
+                          <li>
+                            <span className="font-mono tabular-nums text-foreground">
+                              {p.seoNbMotsCles}
+                            </span>{" "}
+                            mots-clés positionnés
+                            {p.seoTrafic != null ? (
+                              <>
+                                {" · ~"}
+                                <span className="font-mono tabular-nums text-foreground">
+                                  {p.seoTrafic}
+                                </span>{" "}
+                                visites/mois estimées
+                              </>
+                            ) : null}
+                          </li>
+                        ) : null}
+                        {p.seoMotCleLocal ? (
+                          <li>
+                            « {p.seoMotCleLocal} » :{" "}
+                            {p.seoPositionLocale != null ? (
+                              <span className="font-mono tabular-nums text-foreground">
+                                position {p.seoPositionLocale}
+                              </span>
+                            ) : (
+                              <span className="text-negative-ink">absent du top 100</span>
+                            )}
+                          </li>
+                        ) : null}
+                      </ul>
+                    </div>
+                  ) : null}
+
                   {p.cible !== "partenaire" ? <FiltreBreakdown p={p} /> : null}
 
                   {/* Portefeuille aval du partenaire (double scrape §2/§4) */}

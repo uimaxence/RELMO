@@ -470,6 +470,15 @@ model Prospect {
   accrocheEmail    String?
   accrocheLinkedin String?
 
+  // Enrichissement SEO (DataForSEO), relevé à l'audit pour les prospects au score
+  // suffisant (gate SCORE_ENRICH_MIN). Nourrit l'angle « invisibilité locale » de
+  // l'accroche avec des chiffres réels. Cf. src/lib/prospection/seo-enrich.ts.
+  seoNbMotsCles     Int? // nb de mots-clés sur lesquels le domaine ressort
+  seoTrafic         Int? // trafic organique mensuel estimé
+  seoMotCleLocal    String? // requête locale testée (ex. « plombier lyon »)
+  seoPositionLocale Int? // position du domaine sur cette requête (null = hors top 100)
+  seoReleveLe       DateTime?
+
   // Filtre en or (scoring structuré, cf. RELMO-scoring-filtre-en-or.md) — cible=client.
   // Le besoin est un GATE de niche ; les 4 autres signaux somment sur 8.
   filtreBesoin      Boolean? // gate : la niche a-t-elle un besoin web fort
