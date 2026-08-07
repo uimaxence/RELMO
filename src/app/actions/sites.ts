@@ -34,12 +34,21 @@ export async function updateSite(
   await prisma.site.update({ where: { id }, data });
   revalidatePath(`/sites/${id}`);
   revalidatePath(`/clients/${data.clientId}`);
+  revalidatePath("/clients");
   return { ok: true, message: "Site mis à jour." };
 }
 
-export async function deleteSite(id: string, clientId: string): Promise<void> {
+// `redirigerVersClient` n'est utile que depuis la page du site lui-même, qui
+// disparaît avec la suppression. Ailleurs (fiche client, liste des clients) on
+// se contente de revalider pour rester sur place.
+export async function deleteSite(
+  id: string,
+  clientId: string,
+  redirigerVersClient = false,
+): Promise<void> {
   await prisma.site.delete({ where: { id } });
   revalidatePath(`/clients/${clientId}`);
+  revalidatePath("/clients");
   revalidatePath("/");
-  redirect(`/clients/${clientId}`);
+  if (redirigerVersClient) redirect(`/clients/${clientId}`);
 }

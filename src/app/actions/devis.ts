@@ -8,6 +8,7 @@ import { parseForm, type FormState } from "@/lib/form";
 
 function revalidateDevis() {
   revalidatePath("/pipeline");
+  revalidatePath("/clients");
   revalidatePath("/");
 }
 

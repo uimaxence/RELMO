@@ -1,23 +1,9 @@
-import Link from "next/link";
-import { ChevronRight, Pencil } from "lucide-react";
-
 import { prisma } from "@/lib/db";
 import { PageHeader } from "@/components/page-header";
 import { ClientFormDialog } from "@/components/forms/client-form-dialog";
-import { ClientStatusBadge } from "@/components/status-badge";
-import { ConfirmDelete } from "@/components/forms/confirm-delete";
-import { deleteClient } from "@/app/actions/clients";
-import { Button } from "@/components/ui/button";
+import { ClientsTable } from "@/components/clients/clients-table";
+import type { PanelClient } from "@/components/clients/client-panel";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { euros } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -25,22 +11,44 @@ export default async function ClientsPage() {
   const now = new Date();
   const clients = await prisma.client.findMany({
     orderBy: { nom: "asc" },
-    include: { sites: { include: { contrats: true } } },
+    include: {
+      sites: {
+        orderBy: { nom: "asc" },
+        include: { contrats: { orderBy: { dateDebut: "desc" } } },
+      },
+      factures: { orderBy: { dateEmission: "desc" } },
+      devis: { orderBy: { updatedAt: "desc" } },
+    },
   });
 
-  const rows = clients.map((c) => {
-    const contrats = c.sites.flatMap((s) => s.contrats);
-    const mrr = contrats
-      .filter((ct) => ct.statut === "actif" && ct.dateDebut <= now && ct.facturationDemarree)
-      .reduce((sum, ct) => sum + ct.montantMensuel, 0);
-    return { ...c, nbSites: c.sites.length, mrr };
+  const rows: PanelClient[] = clients.map((c) => {
+    const sites = c.sites.map((s) => ({
+      ...s,
+      contrats: s.contrats.map((ct) => ({ ...ct, demarre: ct.dateDebut <= now })),
+    }));
+    const contrats = sites.flatMap((s) => s.contrats);
+    const actifs = contrats.filter((ct) => ct.statut === "actif");
+    const somme = (list: typeof contrats) =>
+      list.reduce((sum, ct) => sum + ct.montantMensuel, 0);
+
+    return {
+      ...c,
+      sites,
+      mrrFacture: somme(
+        actifs.filter((ct) => ct.demarre && ct.facturationDemarree),
+      ),
+      mrrEnAttente: somme(
+        actifs.filter((ct) => ct.demarre && !ct.facturationDemarree),
+      ),
+      mrrAVenir: somme(actifs.filter((ct) => !ct.demarre)),
+    };
   });
 
   return (
     <div>
       <PageHeader
         title="Clients & sites"
-        description="Annuaire des clients et des sites gérés."
+        description="Clique une ligne pour ouvrir la fiche : sites, contrats, factures et devis au même endroit."
       >
         <ClientFormDialog />
       </PageHeader>
@@ -56,58 +64,7 @@ export default async function ClientsPage() {
         </Card>
       ) : (
         <Card>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Client</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead className="text-center">Sites</TableHead>
-                <TableHead className="text-right">MRR facturé</TableHead>
-                <TableHead className="w-[120px]" />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.map((c) => (
-                <TableRow key={c.id}>
-                  <TableCell className="font-medium">
-                    <span className="inline-flex items-center gap-2">
-                      <Link
-                        href={`/clients/${c.id}`}
-                        className="inline-flex items-center gap-1 hover:underline"
-                      >
-                        {c.nom}
-                        <ChevronRight className="size-4 text-muted-foreground" />
-                      </Link>
-                      <ClientStatusBadge statut={c.statut} />
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {c.email ?? "—"}
-                  </TableCell>
-                  <TableCell className="text-center">{c.nbSites}</TableCell>
-                  <TableCell className="text-right font-mono font-medium tabular-nums">
-                    {euros(c.mrr)}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex justify-end gap-1">
-                      <ClientFormDialog
-                        client={c}
-                        trigger={
-                          <Button variant="ghost" size="icon" aria-label="Modifier">
-                            <Pencil />
-                          </Button>
-                        }
-                      />
-                      <ConfirmDelete
-                        action={deleteClient.bind(null, c.id)}
-                        description={`Supprimer « ${c.nom} » et tous ses sites, contrats et livrables ? Cette action est irréversible.`}
-                      />
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          <ClientsTable clients={rows} />
         </Card>
       )}
     </div>

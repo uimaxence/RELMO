@@ -10,6 +10,7 @@ import { parseForm, type FormState } from "@/lib/form";
 
 function revalidateFacture(clientId: string) {
   revalidatePath(`/clients/${clientId}`);
+  revalidatePath("/clients");
 }
 
 export async function createFacture(

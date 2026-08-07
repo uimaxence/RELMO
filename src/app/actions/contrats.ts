@@ -20,6 +20,7 @@ export async function createContrat(
   });
   revalidatePath(`/sites/${data.siteId}`);
   revalidatePath(`/clients/${contrat.site.clientId}`);
+  revalidatePath("/clients");
   revalidatePath("/");
   return { ok: true, message: "Contrat créé." };
 }
@@ -40,6 +41,7 @@ export async function updateContrat(
   });
   revalidatePath(`/sites/${data.siteId}`);
   revalidatePath(`/clients/${contrat.site.clientId}`);
+  revalidatePath("/clients");
   revalidatePath("/");
   return { ok: true, message: "Contrat mis à jour." };
 }
@@ -68,5 +70,6 @@ export async function deleteContrat(id: string, siteId: string): Promise<void> {
   });
   revalidatePath(`/sites/${siteId}`);
   revalidatePath(`/clients/${contrat.site.clientId}`);
+  revalidatePath("/clients");
   revalidatePath("/");
 }

@@ -82,7 +82,7 @@ export default async function SiteDetailPage({
             }
           />
           <ConfirmDelete
-            action={deleteSite.bind(null, site.id, site.clientId)}
+            action={deleteSite.bind(null, site.id, site.clientId, true)}
             description={`Supprimer le site « ${site.nom} » et ses contrats ?`}
             trigger={<Button variant="outline">Supprimer</Button>}
           />
