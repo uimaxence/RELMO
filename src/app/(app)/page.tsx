@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { ObjectifMrr } from "@/components/objectif-mrr";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { VenduVsLivre, type VenduItem } from "@/components/dashboard/vendu-vs-livre";
+import { SitesActifs, type SiteActif } from "@/components/dashboard/sites-actifs";
 import { AiBanner } from "@/components/dashboard/ai-banner";
 import { MrrEvolutionChart } from "@/components/dashboard/mrr-evolution";
 import { euros, dateFr } from "@/lib/format";
@@ -37,6 +38,8 @@ export default async function DashboardPage() {
     livrables,
     upcoming,
     potentielAgg,
+    sitesActifs,
+    dernieresActions,
   ] = await Promise.all([
       prisma.client.count(),
       prisma.site.count(),
@@ -72,6 +75,31 @@ export default async function DashboardPage() {
       prisma.devis.aggregate({
         _sum: { montantMensuelPropose: true },
         where: { statut: "en_nego" },
+      }),
+      // Portefeuille : un site actif par ligne, avec ses contrats et les
+      // livrables de la période en cours.
+      prisma.site.findMany({
+        where: { statut: "actif" },
+        include: {
+          client: { select: { id: true, nom: true } },
+          contrats: {
+            include: {
+              engagements: {
+                include: { livrables: { where: { periode } } },
+              },
+            },
+          },
+        },
+      }),
+      // Dernier livrable fait par site, toutes périodes confondues : dit si un
+      // site a été touché récemment même quand le mois n'est pas encore généré.
+      prisma.livrable.findMany({
+        where: { statut: "fait", faitLe: { not: null } },
+        orderBy: { faitLe: "desc" },
+        select: {
+          faitLe: true,
+          engagement: { select: { contrat: { select: { siteId: true } } } },
+        },
       }),
     ]);
 
@@ -135,6 +163,38 @@ export default async function DashboardPage() {
     parEng.set(l.engagement.id, g);
   }
   const venduItems = [...parEng.values()];
+
+  // Portefeuille de sites actifs : MRR porté et livraison du mois.
+  const derniereParSite = new Map<string, Date>();
+  for (const l of dernieresActions) {
+    const siteId = l.engagement.contrat.siteId;
+    if (l.faitLe && !derniereParSite.has(siteId))
+      derniereParSite.set(siteId, l.faitLe); // trié desc : le premier vu gagne
+  }
+  const sitesActifsRows: SiteActif[] = sitesActifs.map((s) => {
+    const demarres = s.contrats.filter(
+      (ct) => ct.statut === "actif" && ct.dateDebut <= now,
+    );
+    const somme = (list: typeof demarres) =>
+      list.reduce((sum, ct) => sum + ct.montantMensuel, 0);
+    const engagements = s.contrats
+      .filter((ct) => ct.statut === "actif")
+      .flatMap((ct) => ct.engagements);
+    const livrablesSite = engagements.flatMap((e) => e.livrables);
+
+    return {
+      id: s.id,
+      nom: s.nom,
+      clientId: s.client.id,
+      clientNom: s.client.nom,
+      mrrFacture: somme(demarres.filter((ct) => ct.facturationDemarree)),
+      mrrEnAttente: somme(demarres.filter((ct) => !ct.facturationDemarree)),
+      prevus: livrablesSite.length,
+      faits: livrablesSite.filter((l) => l.statut === "fait").length,
+      engagements: engagements.length,
+      derniereAction: derniereParSite.get(s.id) ?? null,
+    };
+  });
 
   const kpis = [
     {
@@ -207,6 +267,8 @@ export default async function DashboardPage() {
           )}
         </CardContent>
       </Card>
+
+      <SitesActifs sites={sitesActifsRows} periode={periodeLabel(periode)} />
 
       <div className="grid gap-6 lg:grid-cols-2">
         <VenduVsLivre items={venduItems} periode={periodeLabel(periode)} />
